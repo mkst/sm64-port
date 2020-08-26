@@ -19,10 +19,11 @@ A prior copy of the game is required to extract the assets.
  - Experimental Stereo 3D support; add build flag `ENABLE_N3DS_3D_MODE=1` to try it out
  - Support injection of [SMDH](https://www.3dbrew.org/wiki/SMDH) file into the .3dsx
      - Change the `icon.png` in the base of this repository before building.
- - Patches updated for 3DS:
-     - [60 FPS](enhancements/60fps.patch)
-     - [Puppycam](enhancements/puppycam.patch)
-     - [Show FPS](enhancements/fps.patch)
+- Patches updated for 3DS:
+    - [60 FPS](enhancements/60fps.patch)
+    - [Puppycam](enhancements/puppycam.patch)
+    - [Show FPS](enhancements/fps.patch)
+ - Experimental Mini-Map; bottom screen displays an overview of the current level
 
 ## Building
 
@@ -262,6 +263,11 @@ sm64
 ## Credits
 
  - Credits go to [Gericom](https://github.com/Gericom) for the [sm64_3ds](https://github.com/sm64-port/sm64_3ds) port that this flavour is based off.
+ - Minimap models:
+   - [alecpike](https://www.models-resource.com/submitter/alecpike/); BOB
+   - [Turtle Boy](https://www.models-resource.com/submitter/Turtle+Boy/); LLL; WF
+   - SlyP54; Castle Grounds
+   - Bruz; Castle Interior
 
 ## Contributing
 

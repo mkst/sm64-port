@@ -162,12 +162,16 @@ Gfx *intro_backdrop_one_image(s32 index, s8 *backgroundTable) {
     displayList = alloc_display_list(36 * sizeof(*displayList));
     displayListIter = displayList;
     vIntroBgTable = segmented_to_virtual(introBackgroundTextureType[backgroundTable[index]]);
+#ifdef ENABLE_N3DS_3D_MODE
+    guTranslate(mtx, introBackgroundOffsetX[index], introBackgroundOffsetY[index], -1.0f);
+#else
     guTranslate(mtx, introBackgroundOffsetX[index], introBackgroundOffsetY[index], 0.0f);
+#endif
     gSPMatrix(displayListIter++, mtx, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
     gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000118);
     for (i = 0; i < 4; ++i) {
-        gDPLoadTextureBlock(displayListIter++, vIntroBgTable[i], G_IM_FMT_RGBA, G_IM_SIZ_16b, 80, 20, 0, 
-                            G_TX_CLAMP, G_TX_CLAMP, 7, 6, G_TX_NOLOD, G_TX_NOLOD)    
+        gDPLoadTextureBlock(displayListIter++, vIntroBgTable[i], G_IM_FMT_RGBA, G_IM_SIZ_16b, 80, 20, 0,
+                            G_TX_CLAMP, G_TX_CLAMP, 7, 6, G_TX_NOLOD, G_TX_NOLOD)
         gSPDisplayList(displayListIter++, introBackgroundDlRows[i]);
     }
     gSPPopMatrix(displayListIter++, G_MTX_MODELVIEW);

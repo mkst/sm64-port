@@ -607,10 +607,10 @@ index 7a83b53..3b21da5 100644
  
  extern s8 gEnvFxMode;
 diff --git a/src/game/hud.c b/src/game/hud.c
-index 8d4daa5..7ce2b22 100644
+index b7234a2..f4d97a4 100644
 --- a/src/game/hud.c
 +++ b/src/game/hud.c
-@@ -57,6 +57,20 @@ static struct UnusedHUDStruct sUnusedHUDValues = { 0x00, 0x0A, 0x00 };
+@@ -61,6 +61,20 @@ static struct UnusedHUDStruct sUnusedHUDValues = { 0x00, 0x0A, 0x00 };
  
  static struct CameraHUD sCameraHUD = { CAM_STATUS_NONE };
  
@@ -631,7 +631,7 @@ index 8d4daa5..7ce2b22 100644
  /**
   * Renders a rgba16 16x16 glyph texture from a table list.
   */
-@@ -109,6 +123,7 @@ void render_power_meter_health_segment(s16 numHealthWedges) {
+@@ -113,6 +127,7 @@ void render_power_meter_health_segment(s16 numHealthWedges) {
   */
  void render_dl_power_meter(s16 numHealthWedges) {
      Mtx *mtx;
@@ -639,7 +639,7 @@ index 8d4daa5..7ce2b22 100644
  
      mtx = alloc_display_list(sizeof(Mtx));
  
-@@ -116,7 +131,15 @@ void render_dl_power_meter(s16 numHealthWedges) {
+@@ -120,7 +135,15 @@ void render_dl_power_meter(s16 numHealthWedges) {
          return;
      }
  
@@ -1805,7 +1805,7 @@ index 3673a1a..e65c3bd 100644
      switch (transType) {
          case WARP_TRANSITION_FADE_FROM_COLOR:
 diff --git a/src/menu/intro_geo.c b/src/menu/intro_geo.c
-index 2d49d06..31cb72f 100644
+index e931438..c8f0b59 100644
 --- a/src/menu/intro_geo.c
 +++ b/src/menu/intro_geo.c
 @@ -1,5 +1,6 @@
@@ -1857,18 +1857,18 @@ index 2d49d06..31cb72f 100644
          gSPDisplayList(displayListIter++, &intro_seg7_dl_0700B3A0);
          gSPPopMatrix(displayListIter++, G_MTX_MODELVIEW);
 diff --git a/src/pc/gfx/gfx_citro3d.c b/src/pc/gfx/gfx_citro3d.c
-index fbad0f6..0d1d6c1 100644
+index f3e6bd5..d24dff3 100644
 --- a/src/pc/gfx/gfx_citro3d.c
 +++ b/src/pc/gfx/gfx_citro3d.c
-@@ -810,7 +810,7 @@ static void gfx_citro3d_init(void)
+@@ -826,7 +826,7 @@ static void gfx_citro3d_init(void)
      C3D_DepthTest(false, GPU_LEQUAL, GPU_WRITE_ALL);
      C3D_AlphaTest(true, GPU_GREATER, 0x00);
  
 -    C3D_FrameRate(30);
 +    C3D_FrameRate(60);
- }
  
- static void gfx_citro3d_start_frame(void)
+     gfx_3ds_init_minimap();
+ }
 diff --git a/src/pc/gfx/gfx_dxgi.cpp b/src/pc/gfx/gfx_dxgi.cpp
 index 02cdd81..c036e0b 100644
 --- a/src/pc/gfx/gfx_dxgi.cpp

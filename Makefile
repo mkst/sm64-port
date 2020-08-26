@@ -375,10 +375,10 @@ MINIMAP_O := $(foreach file,$(MINIMAP_C),$(BUILD_DIR)/$(file:.c=.o))
 
 MINIMAP_TEXTURES := $(MINIMAP)/textures
 MINIMAP_PNG := $(wildcard $(MINIMAP_TEXTURES)/*.png)
-MINIMAP_T3S := $(foreach file,$(MINIMAP_PNG),$(BUILD_DIR)/$(file:.png=.t3s))
+MINIMAP_T3S := $(foreach file,$(MINIMAP_PNG),$(BUILD_DIR)/$(file:.png=.t3s)) $(BUILD_DIR)/$(MINIMAP_TEXTURES)/mario.t3s $(BUILD_DIR)/$(MINIMAP_TEXTURES)/arrow.t3s
 MINIMAP_T3X := $(foreach file,$(MINIMAP_T3S),$(file:.t3s=.t3x))
 MINIMAP_T3X_O := $(foreach file,$(MINIMAP_T3X),$(file:.t3x=.t3x.o))
-MINIMAP_T3X_HEADERS := $(foreach file,$(MINIMAP_PNG),$(BUILD_DIR)/$(file:.png=_t3x.h))
+MINIMAP_T3X_HEADERS := $(foreach file,$(MINIMAP_T3X),$(file:.t3x=_t3x.h))
 endif
 
 ifeq ($(TARGET_N64),1)
@@ -416,11 +416,8 @@ ifeq ($(COMPILER),gcc)
   CC        := $(CROSS)gcc
 endif
 
-ifeq ($(TARGET_N64),1)
-  TARGET_CFLAGS := -nostdinc -I include/libc -DTARGET_N64 -D_LANGUAGE_C
-  CC_CFLAGS := -fno-builtin
-endif
-
+TARGET_CFLAGS := -nostdinc -I include/libc -DTARGET_N64 -D_LANGUAGE_C
+CC_CFLAGS := -fno-builtin
 INCLUDE_CFLAGS := -I include -I $(BUILD_DIR) -I $(BUILD_DIR)/include -I src -I .
 
 # Check code syntax with host compiler
@@ -495,8 +492,8 @@ ifeq ($(TARGET_WEB),1)
   PLATFORM_LDFLAGS := -lm -no-pie -s TOTAL_MEMORY=20MB -g4 --source-map-base http://localhost:8080/ -s "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain']"
 endif
 ifeq ($(TARGET_N3DS),1)
-  CTRULIB  :=  $(DEVKITPRO)/libctru
-  LIBDIRS  := $(CTRULIB)
+  CTRULIB := $(DEVKITPRO)/libctru
+  LIBDIRS := $(CTRULIB)
   export LIBPATHS  :=  $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
   PLATFORM_CFLAGS  := -mtp=soft -DTARGET_N3DS -DARM11 -DosGetTime=n64_osGetTime -D_3DS -march=armv6k -mtune=mpcore -mfloat-abi=hard -mword-relocations -fomit-frame-pointer -ffast-math $(foreach dir,$(LIBDIRS),-I$(dir)/include)
   PLATFORM_LDFLAGS := $(LIBPATHS) -lcitro3d -lctru -lm -specs=3dsx.specs -g -marm -mthumb-interwork -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
@@ -891,29 +888,37 @@ SMDH_DESCRIPTION ?= Super Mario 64 3DS Port
 SMDH_AUTHOR ?= mkst
 SMDH_ICON := icon.smdh
 
-$(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(BUILD_DIR)/src/pc/gfx/shader.shbin.o $(SMDH_ICON)
-	$(LD) -L $(BUILD_DIR) -o $@.elf $(O_FILES) $(BUILD_DIR)/src/pc/gfx/shader.shbin.o $(MINIMAP_T3X_O) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
+$(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(BUILD_DIR)/src/pc/gfx/shader.shbin.o $(MINIMAP_O) $(SMDH_ICON)
+	$(LD) -L $(BUILD_DIR) -o $@.elf $(O_FILES) $(BUILD_DIR)/src/pc/gfx/shader.shbin.o $(MINIMAP_O) $(MINIMAP_T3X_O) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES) $(LDFLAGS)
 	3dsxtool $@.elf $@ --smdh=$(BUILD_DIR)/$(SMDH_ICON)
 
 # stolen from /opt/devkitpro/devkitARM/base_tools
 define bin2o
-  bin2s -a 4 -H $(BUILD_DIR)/$(MINIMAP_TEXTURES)/`(echo $(<F) | tr . _)`.h $(BUILD_DIR)/$< | $(AS) -o $(BUILD_DIR)/$(MINIMAP_TEXTURES)/$(<F).o
+  bin2s -a 4 -H $(BUILD_DIR)/$(MINIMAP_TEXTURES)/`(echo $(<F) | tr . _)`.h $< | $(AS) -o $(BUILD_DIR)/$(MINIMAP_TEXTURES)/$(<F).o
 endef
 
 # TODO: simplify dependency chain
-$(BUILD_DIR)/src/pc/gfx/gfx_citro3d.o: $(BUILD_DIR)/src/pc/gfx/gfx_3ds.o
-$(BUILD_DIR)/src/pc/gfx/gfx_3ds.o: $(BUILD_DIR)/src/pc/gfx/gfx_3ds_menu.o
+$(BUILD_DIR)/src/pc/gfx/gfx_citro3d.o: $(MINIMAP_O)
+$(BUILD_DIR)/src/pc/gfx/gfx_3ds.o: $(MINIMAP_O)
+$(BUILD_DIR)/src/pc/gfx/gfx_3ds_minimap.o: $(MINIMAP_O)
 $(BUILD_DIR)/src/pc/gfx/gfx_3ds_menu.o: $(MINIMAP_T3X_HEADERS)
+$(MINIMAP_O): $(MINIMAP_T3X_HEADERS)
 
-%.t3x.o $(BUILD_DIR)/%_t3x.h: %.t3x
+%.t3x.o %_t3x.h: %.t3x
 	$(bin2o)
 
 %.t3x: %.t3s
-	tex3ds -i $(BUILD_DIR)/$< -o $(BUILD_DIR)/$@
+	tex3ds -i $< -o $@
 
 %.t3s: %.png
-	@printf -- "-f rgba -z auto\n../../../../../$(<)\n" > $(BUILD_DIR)/$@
+	@printf -- "-f rgba -z auto\n$(<F)\n" > $@
 
+$(BUILD_DIR)/%.png: %.png
+	cp $< $@
+$(BUILD_DIR)/$(MINIMAP_TEXTURES)/mario.png: textures/segment2/segment2.05A00.rgba16.png
+	cp $< $@
+$(BUILD_DIR)/$(MINIMAP_TEXTURES)/arrow.png: textures/segment2/segment2.081D0.rgba16.png
+	cp $< $@
 
 %.smdh: %.png
 	smdhtool --create "$(SMDH_TITLE)" "$(SMDH_DESCRIPTION)" "$(SMDH_AUTHOR)" $< $(BUILD_DIR)/$@

@@ -4809,6 +4809,13 @@ typedef union {
 									\
 	_g->words.w0 = _SHIFTL(G_SPECIAL_2, 24, 8); \
 }
+#define gDPSetHud(pkt, mode) \
+{ \
+	Gfx *_g = (Gfx *)(pkt);	\
+									\
+	_g->words.w0 = _SHIFTL(G_SPECIAL_3, 24, 8); \
+	_g->words.w1 = (unsigned int)(mode); \
+}
 
 #endif
 
