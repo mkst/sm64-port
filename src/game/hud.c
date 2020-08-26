@@ -43,7 +43,11 @@ static s16 sPowerMeterStoredHealth;
 
 static struct PowerMeterHUD sPowerMeterHUD = {
     POWER_METER_HIDDEN,
+#if ENABLE_N3DS_3D_MODE
+    160,
+#else
     140,
+#endif
     166,
     1.0,
 };
@@ -259,16 +263,26 @@ void render_hud_power_meter(void) {
 #ifdef VERSION_JP
 #define HUD_TOP_Y 210
 #else
+#ifdef ENABLE_N3DS_3D_MODE
+#define HUD_TOP_Y 220
+#else
 #define HUD_TOP_Y 209
+#endif
 #endif
 
 /**
  * Renders the amount of lives Mario has.
  */
 void render_hud_mario_lives(void) {
+#ifdef ENABLE_N3DS_3D_MODE
+    print_text(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(42), HUD_TOP_Y, ","); // 'Mario Head' glyph
+    print_text(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(58), HUD_TOP_Y, "*"); // 'X' glyph
+    print_text_fmt_int(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(74), HUD_TOP_Y, "%d", gHudDisplay.lives);
+#else
     print_text(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(22), HUD_TOP_Y, ","); // 'Mario Head' glyph
     print_text(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(38), HUD_TOP_Y, "*"); // 'X' glyph
     print_text_fmt_int(GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(54), HUD_TOP_Y, "%d", gHudDisplay.lives);
+#endif
 }
 
 /**
@@ -283,7 +297,11 @@ void render_hud_coins(void) {
 #ifdef VERSION_JP
 #define HUD_STARS_X 73
 #else
+#ifdef ENABLE_N3DS_3D_MODE
+#define HUD_STARS_X 98
+#else
 #define HUD_STARS_X 78
+#endif
 #endif
 
 /**
@@ -380,9 +398,14 @@ void render_hud_camera_status(void) {
     s32 y;
 
     cameraLUT = segmented_to_virtual(&main_hud_camera_lut);
+
+#ifdef ENABLE_N3DS_3D_MODE
+    x = GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(74);
+    y = 215;
+#else
     x = GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(54);
     y = 205;
-
+#endif
     if (sCameraHUD.status == CAM_STATUS_NONE) {
         return;
     }
@@ -450,7 +473,10 @@ void render_hud(void) {
         if (gCurrentArea != NULL && gCurrentArea->camera->mode == CAMERA_MODE_INSIDE_CANNON) {
             render_hud_cannon_reticle();
         }
-
+#ifdef ENABLE_N3DS_3D_MODE
+        gDPForceFlush(gDisplayListHead++); // flush 3d scene
+        gDPSetHud(gDisplayListHead++, 1); // enable hud mode
+#endif
         if (hudDisplayFlags & HUD_DISPLAY_FLAG_LIVES) {
             render_hud_mario_lives();
         }
@@ -468,7 +494,17 @@ void render_hud(void) {
         }
 
         if (hudDisplayFlags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) {
+#ifdef ENABLE_N3DS_3D_MODE
+            gDPForceFlush(gDisplayListHead++);
+            gDPSetHud(gDisplayListHead++, 0);
+            gDPSet2d(gDisplayListHead++, 1);
+#endif
             render_hud_power_meter();
+#ifdef ENABLE_N3DS_3D_MODE
+            gDPForceFlush(gDisplayListHead++);
+            gDPSetHud(gDisplayListHead++, 1);
+            gDPSet2d(gDisplayListHead++, 0);
+#endif
             render_hud_camera_status();
         }
 
