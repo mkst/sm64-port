@@ -156,7 +156,6 @@ static void gfx_3ds_main_loop(void (*run_one_game_iter)(void))
         run_one_game_iter();
     }
 
-    ndspExit();
     C3D_Fini();
     gfxExit();
 }
@@ -206,23 +205,25 @@ static void gfx_3ds_handle_events(void)
     }
 }
 
-float cpu_time;
+float cpu_time, gpu_time;
 uint8_t skip_debounce;
 
 static bool gfx_3ds_start_frame(void)
 {
+#ifndef DISABLE_N3DS_FRAMESKIP
     if (skip_debounce)
     {
         skip_debounce--;
         return true;
     }
-    // we only want 30FPS... but 16.6 ~ 60FPS?
-    if (cpu_time > 16.6f)
+    // skip if frame took longer than 1 / 30 = 33.3 ms
+    if (cpu_time + gpu_time > 33.3f)
     {
-        skip_debounce = 3;
-        cpu_time = 0;
+        skip_debounce = 3; // skip a max of once every 4 frames
+        cpu_time, gpu_time = 0;
         return false;
     }
+#endif
     return true;
 }
 
@@ -233,6 +234,7 @@ static void gfx_3ds_swap_buffers_begin(void)
 static void gfx_3ds_swap_buffers_end(void)
 {
     cpu_time = C3D_GetProcessingTime();
+    gpu_time = C3D_GetDrawingTime();
 }
 
 static double gfx_3ds_get_time(void)

@@ -1857,7 +1857,7 @@ index 2d49d06..31cb72f 100644
          gSPDisplayList(displayListIter++, &intro_seg7_dl_0700B3A0);
          gSPPopMatrix(displayListIter++, G_MTX_MODELVIEW);
 diff --git a/src/pc/gfx/gfx_citro3d.c b/src/pc/gfx/gfx_citro3d.c
-index affdf08..42e86b8 100644
+index fbad0f6..0d1d6c1 100644
 --- a/src/pc/gfx/gfx_citro3d.c
 +++ b/src/pc/gfx/gfx_citro3d.c
 @@ -810,7 +810,7 @@ static void gfx_citro3d_init(void)
@@ -1942,10 +1942,10 @@ index 4fd5c43..7897c6b 100644
      Uint32 elapsed = SDL_GetTicks() - last_time;
  
 diff --git a/src/pc/pc_main.c b/src/pc/pc_main.c
-index fba2ba0..0c92f3d 100644
+index 43bedb4..b3224b6 100644
 --- a/src/pc/pc_main.c
 +++ b/src/pc/pc_main.c
-@@ -80,6 +80,25 @@ void send_display_list(struct SPTask *spTask) {
+@@ -81,6 +81,25 @@ void send_display_list(struct SPTask *spTask) {
  #define SAMPLES_LOW 528
  #endif
  
@@ -1971,15 +1971,15 @@ index fba2ba0..0c92f3d 100644
  void produce_one_frame(void) {
      gfx_start_frame();
      game_loop_one_iteration();
-@@ -93,6 +112,11 @@ void produce_one_frame(void) {
+@@ -94,6 +113,11 @@ void produce_one_frame(void) {
      audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
- 
+ #endif
      gfx_end_frame();
 +
 +    gfx_start_frame();
 +    patch_interpolations();
 +    send_display_list(gGfxSPTask);
 +    gfx_end_frame();
- }
- 
- #ifdef TARGET_WEB
+ #ifdef TARGET_N3DS
+     LightEvent_Wait(&s_event_main);
+ #endif

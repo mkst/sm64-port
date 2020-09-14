@@ -6,6 +6,9 @@ A prior copy of the game is required to extract the assets.
 ## Changes vs. Vanilla 3DS Port
 
  - Based off [Refresh 11](https://github.com/sm64-port/sm64-port/commit/9214dddabcce4723d9b6cda2ebccbac209f6447d)
+ - Audio running on 2nd CPU core; better performance on O3DS
+ - Naive frame-skip if frame takes longer than 33.3ms (1 / 30 FPS) to render
+     - Disable by building with `DISABLE_N3DS_FRAMESKIP=1`
  - Configurable controls via `sm64config.txt`
      - Use [this](https://codepen.io/benoitcaron/full/abNZrbP) online editor from [BenoitCaron](https://github.com/BenoitCaron).
  - GFX_POOL_SIZE [fix](https://github.com/aboood40091/sm64-port/commit/6ae4f4687ed234291ac1e572b75d65191ca9f364) (support 60 FPS on 32bit platforms)
@@ -16,6 +19,10 @@ A prior copy of the game is required to extract the assets.
  - Experimental Stereo 3D support; add build flag `ENABLE_N3DS_3D_MODE=1` to try it out
  - Support injection of [SMDH](https://www.3dbrew.org/wiki/SMDH) file into the .3dsx
      - Change the `icon.png` in the base of this repository before building.
+ - Patches updated for 3DS:
+     - [60 FPS](enhancements/60fps.patch)
+     - [Puppycam](enhancements/puppycam.patch)
+     - [Show FPS](enhancements/fps.patch)
 
 ## Building
 

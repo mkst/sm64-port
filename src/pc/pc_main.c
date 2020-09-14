@@ -27,6 +27,7 @@
 #include "audio/audio_sdl.h"
 #include "audio/audio_null.h"
 #include "audio/audio_3ds.h"
+#include "audio/audio_3ds_threading.h"
 
 #include "controller/controller_keyboard.h"
 
@@ -83,7 +84,7 @@ void send_display_list(struct SPTask *spTask) {
 void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
-
+#ifndef TARGET_N3DS
     int samples_left = audio_api->buffered();
     u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
     s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
@@ -91,8 +92,11 @@ void produce_one_frame(void) {
         create_next_audio_buffer(audio_buffer + i * (num_audio_samples * 2), num_audio_samples);
     }
     audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
-
+#endif
     gfx_end_frame();
+#ifdef TARGET_N3DS
+    LightEvent_Wait(&s_event_main);
+#endif
 }
 
 #ifdef TARGET_WEB
@@ -211,6 +215,7 @@ void main_func(void) {
     inited = 1;
     //the 3ds version has its own main loop
     wm_api->main_loop(produce_one_frame);
+    audio_api->stop();
 #else
     inited = 1;
     while (1) {

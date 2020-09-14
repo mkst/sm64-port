@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index db5b620..52177e0 100644
+index 723512b..4bc4c51 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -264,7 +264,7 @@ else
@@ -10,14 +10,14 @@ index db5b620..52177e0 100644
 +  OPT_FLAGS := -O2
  endif
  endif
-
+ 
 @@ -668,6 +668,8 @@ $(BUILD_DIR)/include/text_strings.h: $(BUILD_DIR)/include/text_menu_strings.h
  $(BUILD_DIR)/src/menu/file_select.o: $(BUILD_DIR)/include/text_strings.h
  $(BUILD_DIR)/src/menu/star_select.o: $(BUILD_DIR)/include/text_strings.h
  $(BUILD_DIR)/src/game/ingame_menu.o: $(BUILD_DIR)/include/text_strings.h
 +$(BUILD_DIR)/src/game/camera.o: $(BUILD_DIR)/include/text_strings.h
 +
-
+ 
  ################################################################
  # TEXTURE GENERATION                                           #
 diff --git a/enhancements/puppycam.h b/enhancements/puppycam.h
@@ -92,7 +92,7 @@ index 0000000..dc4481e
 +#endif // TARGET_N64
 diff --git a/enhancements/puppycam.inc.c b/enhancements/puppycam.inc.c
 new file mode 100644
-index 0000000..eedb206
+index 0000000..f75b329
 --- /dev/null
 +++ b/enhancements/puppycam.inc.c
 @@ -0,0 +1,1058 @@
@@ -1396,12 +1396,12 @@ index 8963446..f6bfa63 100644
 +#define _SEGMENTS_H
 +
 +#define USE_EXT_RAM
-
+ 
  /*
   * Memory addresses for segments. Ideally, this header file would not be
 @@ -44,13 +46,13 @@
   */
-
+ 
  #define SEG_BUFFERS      0x8005C000 // 0x0085000 in size
 -#define SEG_MAIN         0x800E1000 // 0x1328000 in size
 -#define SEG_ENGINE       0x80213800 // 0x0017000 in size
@@ -1415,17 +1415,17 @@ index 8963446..f6bfa63 100644
  #define SEG_POOL_END_4MB 0x80400000 // For the error message screen enhancement.
  #define SEG_GODDARD      SEG_POOL_START + 0x113000
  #endif
-
+ 
 -#endif // SEGMENTS_H
 +#endif // _SEGMENTS_H
 diff --git a/include/text_strings.h.in b/include/text_strings.h.in
-index 749179b..f0deb0f 100644
+index 749179b..18d3803 100644
 --- a/include/text_strings.h.in
 +++ b/include/text_strings.h.in
 @@ -3,6 +3,75 @@
-
+ 
  #include "text_menu_strings.h"
-
+ 
 +#if defined(VERSION_JP)
 +	#define NC_CAMX 				_("Camera X Sensitivity")
 +    #define NC_CAMY 				_("Camera Y Sensitivity")
@@ -1505,7 +1505,7 @@ index 58c5e3f..488f67d 100644
 @@ -49,6 +49,35 @@ void *vec3f_sum(Vec3f dest, Vec3f a, Vec3f b) {
      return &dest; //! warning: function returns address of local variable
  }
-
+ 
 +/// Multiply vector 'dest' by a
 +void *vec3f_mul(Vec3f dest, f32 a)
 +{
@@ -1543,9 +1543,9 @@ index cb37d52..2013402 100644
 --- a/src/engine/math_util.h
 +++ b/src/engine/math_util.h
 @@ -32,15 +32,21 @@ extern f32 gCosineTable[];
-
+ 
  #define sqr(x) ((x) * (x))
-
+ 
 +#define abs(x) ((x) < 0 ? -(x) : (x))
 +
  void *vec3f_copy(Vec3f dest, Vec3f src);
@@ -1574,7 +1574,7 @@ index 9aff62f..822d30a 100644
  #include "surface_load.h"
 +#include "math_util.h"
 +#include "game/game_init.h"
-
+ 
  /**************************************************
   *                      WALLS                     *
 diff --git a/src/game/camera.c b/src/game/camera.c
@@ -1587,13 +1587,13 @@ index 60bfb86..2e1f23f 100644
  }
 +//Compiler gets mad if I put this any further above. thanks refresh 7
 +#include "../../enhancements/puppycam.inc.c"
-
+ 
  void focus_on_mario(Vec3f focus, Vec3f pos, f32 posYOff, f32 focYOff, f32 dist, s16 pitch, s16 yaw) {
      Vec3f marioPos;
 @@ -2852,6 +2854,8 @@ void set_camera_mode(struct Camera *c, s16 mode, s16 frames) {
      struct LinearTransitionPoint *start = &sModeInfo.transitionStart;
      struct LinearTransitionPoint *end = &sModeInfo.transitionEnd;
-
+ 
 +    if (mode != CAM_MODE_NEWCAM && gLakituState.mode != CAM_MODE_NEWCAM)
 +    {
      if (mode == CAMERA_MODE_WATER_SURFACE && gCurrLevelArea == AREA_TTM_OUTSIDE) {
@@ -1605,12 +1605,12 @@ index 60bfb86..2e1f23f 100644
      }
 +    }
  }
-
+ 
  /**
 @@ -2979,7 +2984,7 @@ void update_lakitu(struct Camera *c) {
          gLakituState.roll += sHandheldShakeRoll;
          gLakituState.roll += gLakituState.keyDanceRoll;
-
+ 
 -        if (c->mode != CAMERA_MODE_C_UP && c->cutscene == 0) {
 +        if (c->mode != CAMERA_MODE_C_UP && c->cutscene == 0 && c->mode != CAM_MODE_NEWCAM) {
              gCheckingSurfaceCollisionsForCamera = TRUE;
@@ -1628,7 +1628,7 @@ index 60bfb86..2e1f23f 100644
 @@ -3050,10 +3055,18 @@ void update_camera(struct Camera *c) {
      c->mode = gLakituState.mode;
      c->defMode = gLakituState.defMode;
-
+ 
 +    if (c->mode != CAM_MODE_NEWCAM)
 +    {
      camera_course_processing(c);
@@ -1643,13 +1643,13 @@ index 60bfb86..2e1f23f 100644
 +        gMarioState->area->camera->mode = CAM_MODE_NEWCAM;
 +        gLakituState.mode = CAM_MODE_NEWCAM;
 +    }
-
+ 
      if (c->cutscene != 0) {
          sYawSpeed = 0;
 @@ -3091,6 +3104,10 @@ void update_camera(struct Camera *c) {
                      mode_cannon_camera(c);
                      break;
-
+ 
 +                case CAM_MODE_NEWCAM:
 +                    newcam_loop(c);
 +                    break;
@@ -1680,7 +1680,7 @@ index 60bfb86..2e1f23f 100644
 +        newcam_init(c, 0);
 +    }
  }
-
+ 
  /**
 @@ -5513,6 +5541,9 @@ void set_camera_mode_8_directions(struct Camera *c) {
          s8DirModeBaseYaw = 0;
@@ -1690,7 +1690,7 @@ index 60bfb86..2e1f23f 100644
 +    if (newcam_active == 1)
 +        c->mode = CAM_MODE_NEWCAM;
  }
-
+ 
  /**
 @@ -5524,6 +5555,9 @@ void set_camera_mode_boss_fight(struct Camera *c) {
          transition_to_camera_mode(c, CAMERA_MODE_BOSS_FIGHT, 15);
@@ -1700,7 +1700,7 @@ index 60bfb86..2e1f23f 100644
 +    if (newcam_active == 1)
 +        c->mode = CAM_MODE_NEWCAM;
  }
-
+ 
  void set_camera_mode_close_cam(u8 *mode) {
 @@ -5531,6 +5565,9 @@ void set_camera_mode_close_cam(u8 *mode) {
          sStatusFlags &= ~CAM_FLAG_SMOOTH_MOVEMENT;
@@ -1710,7 +1710,7 @@ index 60bfb86..2e1f23f 100644
 +    if (newcam_active == 1)
 +        *mode = CAM_MODE_NEWCAM;
  }
-
+ 
  /**
 @@ -5555,6 +5592,9 @@ void set_camera_mode_radial(struct Camera *c, s16 transitionTime) {
          }
@@ -1720,7 +1720,7 @@ index 60bfb86..2e1f23f 100644
 +    if (newcam_active == 1)
 +        c->mode = CAM_MODE_NEWCAM;
  }
-
+ 
  /**
 @@ -6933,6 +6973,7 @@ s16 cutscene_object(u8 cutscene, struct Object *o) {
  void update_camera_yaw(struct Camera *c) {
@@ -1728,10 +1728,10 @@ index 60bfb86..2e1f23f 100644
      c->yaw = c->nextYaw;
 +    newcam_apply_outside_values(c,0);
  }
-
+ 
  void cutscene_reset_spline(void) {
 @@ -9201,7 +9242,12 @@ BAD_RETURN(s32) cutscene_non_painting_end(struct Camera *c) {
-
+ 
      if (c->defMode == CAMERA_MODE_CLOSE) {
          c->mode = CAMERA_MODE_CLOSE;
 -    } else {
@@ -1743,11 +1743,11 @@ index 60bfb86..2e1f23f 100644
 +    {
          c->mode = CAMERA_MODE_FREE_ROAM;
      }
-
+ 
 @@ -9957,6 +10003,7 @@ BAD_RETURN(s32) cutscene_sliding_doors_follow_mario(struct Camera *c) {
  BAD_RETURN(s32) cutscene_sliding_doors_open(struct Camera *c) {
      UNUSED u32 pad[2];
-
+ 
 +    newcam_apply_outside_values(c,1);
      reset_pan_distance(c);
      cutscene_event(cutscene_sliding_doors_open_start, c, 0, 8);
@@ -1781,7 +1781,7 @@ index 60bfb86..2e1f23f 100644
 +    {
 +        c->mode = CAMERA_MODE_FREE_ROAM;
      }
-
+ 
      c->cutscene = 0;
 diff --git a/src/game/camera.h b/src/game/camera.h
 index f56ed02..36bb6d9 100644
@@ -1792,13 +1792,13 @@ index f56ed02..36bb6d9 100644
  #define CAMERA_MODE_FREE_ROAM         0x10
  #define CAMERA_MODE_SPIRAL_STAIRS     0x11
 +#define CAM_MODE_NEWCAM 0x12
-
+ 
  #define CAM_MOVE_RETURN_TO_MIDDLE       0x0001
  #define CAM_MOVE_ZOOMED_OUT             0x0002
 @@ -656,8 +657,6 @@ struct LakituState
      /*0xBC*/ s16 unused;
  };
-
+ 
 -// bss order hack to not affect BSS order. if possible, remove me, but it will be hard to match otherwise
 -#ifndef INCLUDED_FROM_CAMERA_C
  // BSS
@@ -1809,11 +1809,11 @@ index f56ed02..36bb6d9 100644
  extern s32 gObjCutsceneDone;
  extern struct Camera *gCamera;
 -#endif
-
+ 
  extern struct Object *gCutsceneFocus;
  extern struct Object *gSecondCameraFocus;
 diff --git a/src/game/game_init.c b/src/game/game_init.c
-index 3ce5f2d..856388b 100644
+index 0e1d914..f7a2b68 100644
 --- a/src/game/game_init.c
 +++ b/src/game/game_init.c
 @@ -20,6 +20,8 @@
@@ -1822,19 +1822,19 @@ index 3ce5f2d..856388b 100644
  #include <prevent_bss_reordering.h>
 +#include "../../enhancements/puppycam.h"
 +#include "pc/controller/controller_3ds.h"
-
- // FIXME: I'm not sure all of these variables belong in this file, but I don't
- // know of a good way to split them
-@@ -609,6 +611,7 @@ void thread5_game_loop(UNUSED void *arg) {
-
+ 
+ #ifdef TARGET_N3DS
+ #include "pc/audio/audio_3ds_threading.h"
+@@ -613,6 +615,7 @@ void thread5_game_loop(UNUSED void *arg) {
+ 
      play_music(SEQ_PLAYER_SFX, SEQUENCE_ARGS(0, SEQ_SOUND_PLAYER), 0);
      set_sound_mode(save_file_get_sound_mode());
 +    newcam_init_settings();
-
+ 
  #ifdef TARGET_N64
      rendering_init();
 diff --git a/src/game/hud.c b/src/game/hud.c
-index 5d78cfc..2a9b874 100644
+index 8d4daa5..c1f2099 100644
 --- a/src/game/hud.c
 +++ b/src/game/hud.c
 @@ -13,6 +13,7 @@
@@ -1842,21 +1842,21 @@ index 5d78cfc..2a9b874 100644
  #include "save_file.h"
  #include "print.h"
 +#include "../../enhancements/puppycam.h"
-
+ 
  /* @file hud.c
   * This file implements HUD rendering and power meter animations.
 @@ -469,7 +470,8 @@ void render_hud(void) {
-
+ 
          if (hudDisplayFlags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) {
              render_hud_power_meter();
 -            render_hud_camera_status();
 +            if (!newcam_active)
 +                render_hud_camera_status();
          }
-
+ 
          if (hudDisplayFlags & HUD_DISPLAY_FLAG_TIMER) {
 diff --git a/src/game/ingame_menu.c b/src/game/ingame_menu.c
-index 04047a1..dee4fb9 100644
+index b9a43df..f6f2d7f 100644
 --- a/src/game/ingame_menu.c
 +++ b/src/game/ingame_menu.c
 @@ -22,6 +22,7 @@
@@ -1864,7 +1864,7 @@ index 04047a1..dee4fb9 100644
  #include "text_strings.h"
  #include "types.h"
 +#include "../../enhancements/puppycam.h"
-
+ 
  u16 gDialogColorFadeTimer;
  s8 gLastDialogLineNum;
 @@ -2603,7 +2604,10 @@ s16 render_pause_courses_and_castle(void) {
@@ -1893,7 +1893,7 @@ index 04047a1..dee4fb9 100644
 +    newcam_check_pause_buttons();
 +    newcam_render_option_text();
 +    #endif
-
+ 
      return 0;
  }
 diff --git a/src/game/mario.c b/src/game/mario.c
@@ -1905,12 +1905,12 @@ index 5b103fa..3e55490 100644
  #include "sound_init.h"
  #include "thread6.h"
 +#include "../../enhancements/puppycam.h"
-
+ 
  u32 unused80339F10;
  s8 filler80339F1C[20];
 @@ -1306,7 +1307,10 @@ void update_mario_joystick_inputs(struct MarioState *m) {
      }
-
+ 
      if (m->intendedMag > 0.0f) {
 -        m->intendedYaw = atan2s(-controller->stickY, controller->stickX) + m->area->camera->yaw;
 +        if (gLakituState.mode != CAM_MODE_NEWCAM)
@@ -1923,12 +1923,12 @@ index 5b103fa..3e55490 100644
 @@ -1616,7 +1620,7 @@ void mario_update_hitbox_and_cap_model(struct MarioState *m) {
      struct MarioBodyState *bodyState = m->marioBodyState;
      s32 flags = update_and_return_cap_flags(m);
-
+ 
 -    if (flags & MARIO_VANISH_CAP) {
 +    if (flags & MARIO_VANISH_CAP || newcam_xlu < 255) {
          bodyState->modelState = MODEL_STATE_NOISE_ALPHA;
      }
-
+ 
 diff --git a/src/game/mario_misc.c b/src/game/mario_misc.c
 index e6354e8..393d8bb 100644
 --- a/src/game/mario_misc.c
@@ -1938,13 +1938,13 @@ index e6354e8..393d8bb 100644
  #include "skybox.h"
  #include "sound_init.h"
 +#include "../../enhancements/puppycam.h"
-
+ 
  #define TOAD_STAR_1_REQUIREMENT 12
  #define TOAD_STAR_2_REQUIREMENT 25
 @@ -296,12 +297,45 @@ void bhv_unlock_door_star_loop(void) {
      }
  }
-
+ 
 +static u32 find_capflag(struct MarioState *m) {
 +    u32 flags = m->flags;
 +    u64 sCapFlickerFrames = 0x4444449249255555;
@@ -1984,7 +1984,7 @@ index e6354e8..393d8bb 100644
      Gfx *gfxHead = NULL;
 +    u8 alphaBias;
 +    s32 flags = find_capflag(gMarioState);
-
+ 
      if (alpha == 255) {
          node->fnNode.node.flags = (node->fnNode.node.flags & 0xFF) | (LAYER_OPAQUE << 8);
 @@ -311,9 +345,17 @@ static Gfx *make_gfx_mario_alpha(struct GraphNodeGenerated *node, s16 alpha) {
@@ -2016,20 +2016,20 @@ index 4748b99..bb9f149 100644
  #include "course_table.h"
  #include "thread6.h"
 +#include "../../enhancements/puppycam.h"
-
+ 
  #define MENU_DATA_MAGIC 0x4849
  #define SAVE_FILE_MAGIC 0x4441
-
+ 
 -STATIC_ASSERT(sizeof(struct SaveBuffer) == EEPROM_SIZE, "eeprom buffer size must match");
 +STATIC_ASSERT(sizeof(struct SaveBuffer) <= EEPROM_SIZE, "eeprom buffer size higher than intended");
 +STATIC_ASSERT(sizeof(struct SaveBuffer) >= EEPROM_SIZE, "eeprom buffer size lower than intended");
-
+ 
  extern struct SaveBuffer gSaveBuffer;
-
+ 
 @@ -565,6 +567,51 @@ u16 save_file_get_sound_mode(void) {
      return gSaveBuffer.menuData[0].soundMode;
  }
-
+ 
 +#ifndef NC_CODE_NOSAVE
 +void save_file_set_setting(void) {
 +
@@ -2083,9 +2083,9 @@ index 3ee5a19..824ee79 100644
 --- a/src/game/save_file.h
 +++ b/src/game/save_file.h
 @@ -8,7 +8,12 @@
-
+ 
  #include "course_table.h"
-
+ 
 -#define EEPROM_SIZE 0x200
 +#ifndef NC_CODE_NOSAVE
 +    #define EEPROM_SIZE 0x800
@@ -2094,7 +2094,7 @@ index 3ee5a19..824ee79 100644
 +#endif
 +
  #define NUM_SAVE_FILES 4
-
+ 
  struct SaveBlockSignature
 @@ -52,16 +57,28 @@ struct MainMenuSaveData
      // on the high score screen.
@@ -2119,12 +2119,12 @@ index 3ee5a19..824ee79 100644
 -#define SUBTRAHEND 6
 +#define SUBTRAHEND 15
  #endif
-
+ 
 +    #ifdef NC_CODE_NOSAVE
      // Pad to match the EEPROM size of 0x200 (10 bytes on JP/US, 8 bytes on EU)
      u8 filler[EEPROM_SIZE / 2 - SUBTRAHEND - NUM_SAVE_FILES * (4 + sizeof(struct SaveFile))];
 +    #endif
-
+ 
      struct SaveBlockSignature signature;
  };
 @@ -72,6 +89,11 @@ struct SaveBuffer
@@ -2137,7 +2137,7 @@ index 3ee5a19..824ee79 100644
 +    u8 filler[EEPROM_SIZE - ((NUM_SAVE_FILES*(sizeof(struct SaveFile))+sizeof(struct MainMenuSaveData))*2)];
 +    #endif
  };
-
+ 
  extern u8 gLastCompletedCourseNum;
 @@ -144,6 +166,12 @@ s32 save_file_get_cap_pos(Vec3s capPos);
  void save_file_set_sound_mode(u16 mode);
@@ -2149,7 +2149,7 @@ index 3ee5a19..824ee79 100644
 +void save_file_get_setting(void);
 +void save_file_set_setting(void);
 +#endif
-
+ 
  void disable_warp_checkpoint(void);
  void check_if_should_set_warp_checkpoint(struct WarpNode *warpNode);
 diff --git a/src/pc/configfile.c b/src/pc/configfile.c
@@ -2159,7 +2159,7 @@ index 7bbdcef..43d7f01 100644
 @@ -68,6 +68,15 @@ unsigned int configKeyStickLeft  = 0;
  unsigned int configKeyStickRight = 0;
  #endif
-
+ 
 +unsigned int puppycam_sensitivityX = 75;
 +unsigned int puppycam_sensitivityY = 75;
 +unsigned int puppycam_invertX = 0;
@@ -2169,7 +2169,7 @@ index 7bbdcef..43d7f01 100644
 +unsigned int puppycam_panlevel = 75;
 +
 +
-
+ 
  static const struct ConfigOption options[] = {
      {.name = "fullscreen",     .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
 @@ -81,6 +90,13 @@ static const struct ConfigOption options[] = {
@@ -2193,7 +2193,7 @@ index 7128aaa..eaa85da 100644
 @@ -17,6 +17,14 @@ extern unsigned int configKeyStickDown;
  extern unsigned int configKeyStickLeft;
  extern unsigned int configKeyStickRight;
-
+ 
 +extern unsigned int puppycam_sensitivityX;
 +extern unsigned int puppycam_sensitivityY;
 +extern unsigned int puppycam_invertX;
@@ -2204,27 +2204,27 @@ index 7128aaa..eaa85da 100644
 +
  void configfile_load(const char *filename);
  void configfile_save(const char *filename);
-
+ 
 diff --git a/src/pc/controller/controller_3ds.c b/src/pc/controller/controller_3ds.c
 index aeb80d8..5d449fd 100644
 --- a/src/pc/controller/controller_3ds.c
 +++ b/src/pc/controller/controller_3ds.c
 @@ -36,6 +36,11 @@
-
+ 
  #include "../configfile.h"
-
+ 
 +#include <include/types.h>
 +#include <enhancements/puppycam.h>
 +
 +s16 rightstick[2];
 +
  static int button_mapping[10][2];
-
+ 
  static void set_button_mapping(int index, int mask_n64, int mask_3ds)
 @@ -77,10 +82,21 @@ static void controller_3ds_read(OSContPad *pad)
  {
      pad->button = controller_3ds_get_held();
-
+ 
 -    circlePosition pos;
 -    hidCircleRead(&pos);
 -    pad->stick_x = pos.dx / 2;
@@ -2245,7 +2245,7 @@ index aeb80d8..5d449fd 100644
 +        newcam_analogue = 1;
 +    }
  }
-
+ 
  struct ControllerAPI controller_3ds = {
 diff --git a/src/pc/controller/controller_3ds.h b/src/pc/controller/controller_3ds.h
 index 00f3fae..038216d 100644
@@ -2253,8 +2253,8 @@ index 00f3fae..038216d 100644
 +++ b/src/pc/controller/controller_3ds.h
 @@ -4,5 +4,6 @@
  #include "controller_api.h"
-
+ 
  extern struct ControllerAPI controller_3ds;
 +extern s16 rightstick[2];
-
+ 
  #endif

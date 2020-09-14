@@ -21,6 +21,10 @@
 #include "thread6.h"
 #include <prevent_bss_reordering.h>
 
+#ifdef TARGET_N3DS
+#include "pc/audio/audio_3ds_threading.h"
+#endif
+
 // FIXME: I'm not sure all of these variables belong in this file, but I don't
 // know of a good way to split them
 struct Controller gControllers[3];
@@ -644,6 +648,9 @@ void game_loop_one_iteration(void) {
         config_gfx_pool();
         read_controller_inputs();
         levelCommandAddr = level_script_execute(levelCommandAddr);
+#ifdef TARGET_N3DS
+        LightEvent_Signal(&s_event_audio);
+#endif
         display_and_vsync();
 
         // when debug info is enabled, print the "BUF %d" information.

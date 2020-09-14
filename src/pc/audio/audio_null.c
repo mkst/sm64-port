@@ -16,9 +16,17 @@ static int audio_null_get_desired_buffered(void) {
 static void audio_null_play(UNUSED const uint8_t *buf, UNUSED size_t len) {
 }
 
+#ifdef TARGET_N3DS
+static void audio_null_stop(void) {
+}
+#endif
+
 struct AudioAPI audio_null = {
     audio_null_init,
     audio_null_buffered,
     audio_null_get_desired_buffered,
-    audio_null_play
+    audio_null_play,
+#ifdef TARGET_N3DS
+    audio_null_stop
+#endif
 };

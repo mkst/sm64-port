@@ -1,8 +1,8 @@
 diff --git a/src/game/game_init.c b/src/game/game_init.c
-index 3ce5f2d..a102e6f 100644
+index 0e1d914..fbfa95e 100644
 --- a/src/game/game_init.c
 +++ b/src/game/game_init.c
-@@ -59,6 +59,24 @@ struct DemoInput *gCurrDemoInput = NULL; // demo input sequence
+@@ -63,6 +63,24 @@ struct DemoInput *gCurrDemoInput = NULL; // demo input sequence
  u16 gDemoInputListID = 0;
  struct DemoInput gRecordedDemoInput = { 0 }; // possibly removed in EU. TODO: Check
  
@@ -27,20 +27,15 @@ index 3ce5f2d..a102e6f 100644
  /**
   * Initializes the Reality Display Processor (RDP).
   * This function initializes settings such as texture filtering mode,
-@@ -639,12 +657,12 @@ void game_loop_one_iteration(void) {
+@@ -652,7 +670,7 @@ void game_loop_one_iteration(void) {
+         LightEvent_Signal(&s_event_audio);
  #endif
-             osContStartReadData(&gSIEventMesgQueue);
-         }
--
-         audio_game_loop_tick();
-         config_gfx_pool();
-         read_controller_inputs();
-         levelCommandAddr = level_script_execute(levelCommandAddr);
          display_and_vsync();
+-
 +        render_fps();
- 
          // when debug info is enabled, print the "BUF %d" information.
          if (gShowDebugText) {
+             // subtract the end of the gfx pool with the display list to obtain the
 diff --git a/src/pc/ultra_reimplementation.c b/src/pc/ultra_reimplementation.c
 index 2b28ea8..541b419 100644
 --- a/src/pc/ultra_reimplementation.c
