@@ -206,8 +206,23 @@ static void gfx_3ds_handle_events(void)
     }
 }
 
+float cpu_time;
+uint8_t skip_debounce;
+
 static bool gfx_3ds_start_frame(void)
 {
+    if (skip_debounce)
+    {
+        skip_debounce--;
+        return true;
+    }
+    // we only want 30FPS... but 16.6 ~ 60FPS?
+    if (cpu_time > 16.6f)
+    {
+        skip_debounce = 3;
+        cpu_time = 0;
+        return false;
+    }
     return true;
 }
 
@@ -217,6 +232,7 @@ static void gfx_3ds_swap_buffers_begin(void)
 
 static void gfx_3ds_swap_buffers_end(void)
 {
+    cpu_time = C3D_GetProcessingTime();
 }
 
 static double gfx_3ds_get_time(void)

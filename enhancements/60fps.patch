@@ -1857,23 +1857,18 @@ index 2d49d06..31cb72f 100644
          gSPDisplayList(displayListIter++, &intro_seg7_dl_0700B3A0);
          gSPPopMatrix(displayListIter++, G_MTX_MODELVIEW);
 diff --git a/src/pc/gfx/gfx_citro3d.c b/src/pc/gfx/gfx_citro3d.c
-index c564a46..52a7d87 100644
+index f2438e8..1e7b08e 100644
 --- a/src/pc/gfx/gfx_citro3d.c
 +++ b/src/pc/gfx/gfx_citro3d.c
-@@ -837,13 +837,10 @@ static void gfx_citro3d_on_resize(void)
+@@ -810,7 +810,7 @@ static void gfx_citro3d_init(void)
+     C3D_DepthTest(false, GPU_LEQUAL, GPU_WRITE_ALL);
+     C3D_AlphaTest(true, GPU_GREATER, 0x00);
  
- static void gfx_citro3d_end_frame(void)
- {
--    float target_fps = 60.0f;
-     // TOOD: draw the minimap here
-     gfx_3ds_menu_draw(sVboBuffer, sBufIdx, gShowConfigMenu);
- 
-     C3D_FrameEnd(0);
--    if (C3D_GetProcessingTime() < 1000.0f / target_fps)
--        gspWaitForVBlank();
+-    C3D_FrameRate(30);
++    C3D_FrameRate(60);
  }
  
- static void gfx_citro3d_finish_render(void)
+ static void gfx_citro3d_start_frame(void)
 diff --git a/src/pc/gfx/gfx_dxgi.cpp b/src/pc/gfx/gfx_dxgi.cpp
 index 02cdd81..c036e0b 100644
 --- a/src/pc/gfx/gfx_dxgi.cpp

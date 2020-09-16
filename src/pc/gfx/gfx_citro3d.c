@@ -809,6 +809,8 @@ static void gfx_citro3d_init(void)
     C3D_DepthMap(true, -1.0f, 0);
     C3D_DepthTest(false, GPU_LEQUAL, GPU_WRITE_ALL);
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
+
+    C3D_FrameRate(30);
 }
 
 static void gfx_citro3d_start_frame(void)
@@ -837,13 +839,10 @@ static void gfx_citro3d_on_resize(void)
 
 static void gfx_citro3d_end_frame(void)
 {
-    float target_fps = 60.0f;
     // TOOD: draw the minimap here
     gfx_3ds_menu_draw(sVboBuffer, sBufIdx, gShowConfigMenu);
 
     C3D_FrameEnd(0);
-    if (C3D_GetProcessingTime() < 1000.0f / target_fps)
-        gspWaitForVBlank();
 }
 
 static void gfx_citro3d_finish_render(void)
