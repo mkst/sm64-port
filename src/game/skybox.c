@@ -227,6 +227,9 @@ static int get_top_left_tile_idx(s8 player) {
  * @param tileIndex The index into the 32x32 sections of the whole skybox image. The index is converted
  *                  into an x and y by modulus and division by SKYBOX_COLS. x and y are then scaled by
  *                  SKYBOX_TILE_WIDTH to get a point in world space.
+ *                  z value of make_vertex function effectively sets depth of orthoplane even with
+ *                  z buffer disabled in geo layout. Skybox disappears at values < -3 (LOD clipping?)
+ *                  Regardless, -3 seems like the correct value for stereo 3D, and 2D is unaffected.
  */
 Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
     Vtx *verts = alloc_display_list(4 * sizeof(*verts));
@@ -234,13 +237,13 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
     s16 y = SKYBOX_HEIGHT - tileIndex / SKYBOX_COLS * SKYBOX_TILE_HEIGHT;
 
     if (verts != NULL) {
-        make_vertex(verts, 0, x, y, -1, 0, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+        make_vertex(verts, 0, x, y, -3, 0, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
-        make_vertex(verts, 1, x, y - SKYBOX_TILE_HEIGHT, -1, 0, 31 << 5, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+        make_vertex(verts, 1, x, y - SKYBOX_TILE_HEIGHT, -3, 0, 31 << 5, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
-        make_vertex(verts, 2, x + SKYBOX_TILE_WIDTH, y - SKYBOX_TILE_HEIGHT, -1, 31 << 5, 31 << 5, sSkyboxColors[colorIndex][0],
+        make_vertex(verts, 2, x + SKYBOX_TILE_WIDTH, y - SKYBOX_TILE_HEIGHT, -3, 31 << 5, 31 << 5, sSkyboxColors[colorIndex][0],
                     sSkyboxColors[colorIndex][1], sSkyboxColors[colorIndex][2], 255);
-        make_vertex(verts, 3, x + SKYBOX_TILE_WIDTH, y, -1, 31 << 5, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+        make_vertex(verts, 3, x + SKYBOX_TILE_WIDTH, y, -3, 31 << 5, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
     } else {
     }
@@ -309,17 +312,12 @@ Gfx *init_skybox_display_list(s8 player, s8 background, s8 colorIndex) {
         Mtx *ortho = create_skybox_ortho_matrix(player);
 
         gSPDisplayList(dlist++, dl_skybox_begin);
-#ifdef ENABLE_N3DS_3D_MODE
-        gDPSet2d(dlist++, 1);
-#endif
         gSPMatrix(dlist++, VIRTUAL_TO_PHYSICAL(ortho), G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
         gSPDisplayList(dlist++, dl_skybox_tile_tex_settings);
         draw_skybox_tile_grid(&dlist, background, player, colorIndex);
         gSPDisplayList(dlist++, dl_skybox_end);
-#ifdef ENABLE_N3DS_3D_MODE
-        gDPForceFlush(dlist++); // flush skybox
-        gDPSet2d(dlist++, 0); // reset 2D mode
-#endif
+        gDPForceFlush(dlist++); // flush skybox -- unsure of function
+
         gSPEndDisplayList(dlist);
 
     }
