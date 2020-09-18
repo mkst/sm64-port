@@ -22,6 +22,15 @@ extern void create_next_audio_buffer(s16 *samples, u32 num_samples);
 static int sNextBuffer;
 static ndspWaveBuf sDspBuffers[N3DS_DSP_DMA_BUFFER_COUNT];
 
+static bool checkN3DS()
+{
+    bool isNew3DS = false;
+    if (R_SUCCEEDED(APT_CheckNew3DS(&isNew3DS)))
+        return isNew3DS;
+
+    return false;
+}
+
 static int audio_3ds_buffered(void)
 {
     int total = 0;
@@ -112,9 +121,12 @@ static bool audio_3ds_init()
     s32 prio = 0;
     svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 
-    int cpu = 0; // application core
-    if (R_SUCCEEDED(APT_SetAppCpuTimeLimit(80)))
+    int cpu = 0; // application core -- is this fallback really needed?
+	if (checkN3DS())
+		cpu = 2; // new3ds core3
+	else if (R_SUCCEEDED(APT_SetAppCpuTimeLimit(80)))
         cpu = 1; // system core
+
 
     threadId = threadCreate(audio_3ds_loop, 0, 128 * 1024, prio - 1, cpu, true);
 
