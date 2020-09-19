@@ -6,7 +6,7 @@ A prior copy of the game is required to extract the assets.
 ## Changes vs. Vanilla 3DS Port
 
  - Based off [Refresh 11](https://github.com/sm64-port/sm64-port/commit/9214dddabcce4723d9b6cda2ebccbac209f6447d)
- - Audio running on 2nd CPU core; better performance on O3DS
+ - Multi-threaded; audio thread runs on Core 1 on O3DS and Core 2 on N3DS; needs [Luma v10.1.1](https://github.com/LumaTeam/Luma3DS/releases) or higher
  - Naive frame-skip if frame takes longer than 33.3ms (1 / 30 FPS) to render
      - Disable by building with `DISABLE_N3DS_FRAMESKIP=1`
  - Configurable controls via `sm64config.txt`
@@ -19,11 +19,10 @@ A prior copy of the game is required to extract the assets.
  - Experimental Stereo 3D support; add build flag `ENABLE_N3DS_3D_MODE=1` to try it out
  - Support injection of [SMDH](https://www.3dbrew.org/wiki/SMDH) file into the .3dsx
      - Change the `icon.png` in the base of this repository before building.
-- Patches updated for 3DS:
-    - [60 FPS](enhancements/60fps.patch)
-    - [Puppycam](enhancements/puppycam.patch)
-    - [Show FPS](enhancements/fps.patch)
- - Experimental Mini-Map; bottom screen displays an overview of the current level
+ - Patches updated for 3DS:
+     - [60 FPS](enhancements/60fps.patch)
+     - [Puppycam](enhancements/puppycam.patch)
+     - [Show FPS](enhancements/fps.patch)
 
 ## Building
 
@@ -54,7 +53,7 @@ cd sm64-port
 **Copy in baserom.XX.z64:**
 
 ```sh
-cp /path/to/your/baserom.XX.z64 . # change 'XX' to 'us', 'eu' or 'jp' as appropriate
+cp /path/to/your/baserom.us.z64 ./ # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 **Checkout this branch:**
@@ -118,8 +117,8 @@ cd sm64-port
 
 git checkout 3ds-port
 
-# go and copy the baserom to c:\temp (create that directory in windows explorer)
-cp /mnt/c/temp/baserom.us.z64 .
+# go and copy the baserom to c:\temp (create that directory in Windows Explorer)
+cp /mnt/c/temp/baserom.us.z64 ./
 
 sudo chmod 644 ./baserom.us.z64
 
@@ -175,7 +174,7 @@ EOF
 pacman -Syu --noconfirm
 ```
 
-MSYS2 will likely close itself when done, find `MSYS2 MinGW 64bit` in your Start Menu and open again.
+MSYS2 may close itself when done, if it does, find `MSYS2 MinGW 64bit` in your Start Menu and open again.
 
 **Install Dependencies:**
 
@@ -208,7 +207,7 @@ cd sm64-port
 
 This assumes that you have create the directory `c:\temp` via Windows Explorer and copied the `baserom.XX.z64` to it.
 ```sh
-cp /c/temp/baserom.XX.z64 . # change 'XX' to 'us', 'eu' or 'jp' as appropriate
+cp /c/temp/baserom.us.z64 ./ # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 **Checkout this branch:**
@@ -220,7 +219,7 @@ git checkout 3ds-port
 **Compile:**
 
 ```sh
-make VERSION=us --jobs 4 # change 'us' to 'eu' or 'jp' as appropriate
+make VERSION=us --jobs 4 # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 ### Other Operating Systems
@@ -263,11 +262,6 @@ sm64
 ## Credits
 
  - Credits go to [Gericom](https://github.com/Gericom) for the [sm64_3ds](https://github.com/sm64-port/sm64_3ds) port that this flavour is based off.
- - Minimap models:
-   - [alecpike](https://www.models-resource.com/submitter/alecpike/); BOB
-   - [Turtle Boy](https://www.models-resource.com/submitter/Turtle+Boy/); LLL; WF
-   - SlyP54; Castle Grounds
-   - Bruz; Castle Interior
 
 ## Contributing
 

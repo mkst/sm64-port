@@ -17,6 +17,12 @@
 
 #define N3DS_DSP_DMA_BUFFER_COUNT   4
 
+static bool is_new_n3ds()
+{
+    bool is_new_n3ds = false;
+    return R_SUCCEEDED(APT_CheckNew3DS(&is_new_n3ds)) ? is_new_n3ds : false;
+}
+
 extern void create_next_audio_buffer(s16 *samples, u32 num_samples);
 
 static int sNextBuffer;
@@ -112,14 +118,18 @@ static bool audio_3ds_init()
     s32 prio = 0;
     svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
 
-    int cpu = 0; // application core
-    if (R_SUCCEEDED(APT_SetAppCpuTimeLimit(80)))
-        cpu = 1; // system core
+    int cpu;
+    if (is_new_n3ds())
+        cpu = 2; // n3ds 3rd core
+    else if (R_SUCCEEDED(APT_SetAppCpuTimeLimit(80)))
+        cpu = 1; // o3ds 2nd core (system)
+    else
+        cpu = 0; // better to have choppy sound than no sound?
 
     threadId = threadCreate(audio_3ds_loop, 0, 128 * 1024, prio - 1, cpu, true);
 
     if (threadId)
-        printf("Created audio thread on %s core\n", cpu ? "os" : "application");
+        printf("Created audio thread on core %i\n", cpu);
     else
         printf("Failed to create audio thread\n");
 
