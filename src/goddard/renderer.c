@@ -3453,6 +3453,10 @@ void gd_put_sprite(u16 *sprite, s32 x, s32 y, s32 wx, s32 wy) {
     gDPSetCycleType(next_gfx(), G_CYC_1CYCLE);
     gDPSetRenderMode(next_gfx(), G_RM_AA_ZB_OPA_INTER, G_RM_NOOP2);
     gSPTexture(next_gfx(), 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_OFF);
+
+#ifdef ENABLE_N3DS_3D_MODE
+	gDPSet2d(next_gfx(), 1);
+#endif
 }
 
 /* 254DFC -> 254F94; orig name: proc_dyn_list */
