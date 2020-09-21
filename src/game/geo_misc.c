@@ -202,6 +202,11 @@ Gfx *geo_exec_cake_end_screen(s32 callContext, struct GraphNode *node, UNUSED f3
         displayList = alloc_display_list(3 * sizeof(*displayList));
         displayListHead = displayList;
 
+#ifdef ENABLE_N3DS_3D_MODE
+        gDPForceFlush(displayListHead++);
+        gDPSet2d(displayListHead++, 1);
+#endif
+
         generatedNode->fnNode.node.flags = (generatedNode->fnNode.node.flags & 0xFF) | 0x100;
 #ifdef VERSION_EU
         gSPDisplayList(displayListHead++, dl_cake_end_screen);
@@ -222,6 +227,11 @@ Gfx *geo_exec_cake_end_screen(s32 callContext, struct GraphNode *node, UNUSED f3
         }
 #else
         gSPDisplayList(displayListHead++, dl_cake_end_screen);
+#endif
+
+#ifdef ENABLE_N3DS_3D_MODE
+        gDPForceFlush(displayListHead++);
+        gDPSet2d(displayListHead++, 0);
 #endif
         gSPEndDisplayList(displayListHead);
     }

@@ -365,7 +365,7 @@ void print_act_selector_strings(void) {
     }
 
     gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_end);
- }
+}
 
 /**
  * Geo function that Print act selector strings.
@@ -383,7 +383,7 @@ Gfx *geo_act_selector_strings(s16 callContext, UNUSED struct GraphNode *node) {
 #endif
         print_act_selector_strings();
 #ifdef ENABLE_N3DS_3D_MODE
-        gDPForceFlush(gDisplayListHead);
+        gDPForceFlush(gDisplayListHead++);
         gDPSet2d(gDisplayListHead++, 0);
 #endif
     }
