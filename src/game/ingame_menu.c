@@ -1935,11 +1935,7 @@ void do_cutscene_handler(void) {
     create_dl_ortho_matrix();
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
-#ifndef WIDESCREEN
-    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gCutsceneMsgFade); 
-#else
-    gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, gCutsceneMsgFade); // Ending cutscene gets black text if widescreen, text beomes hard to read without letterbox
-#endif
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gCutsceneMsgFade);
 
 #ifdef ENABLE_N3DS_3D_MODE
     gDPForceFlush(gDisplayListHead++);
