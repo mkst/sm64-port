@@ -840,13 +840,12 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
         if (z_is_from_0_to_1) {
             z = (z + w) / 2.0f;
         }
-#ifdef TARGET_N3DS
-        buf_vbo[buf_vbo_len++] = v_arr[i]->y;
-        buf_vbo[buf_vbo_len++] = -v_arr[i]->x;
-        buf_vbo[buf_vbo_len++] = -z;
-#else
+
         buf_vbo[buf_vbo_len++] = v_arr[i]->x;
         buf_vbo[buf_vbo_len++] = v_arr[i]->y;
+#ifdef TARGET_N3DS
+        buf_vbo[buf_vbo_len++] = -z;
+#else
         buf_vbo[buf_vbo_len++] = z;
 #endif
         buf_vbo[buf_vbo_len++] = w;
@@ -862,14 +861,14 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
             buf_vbo[buf_vbo_len++] = u / tex_width;
             buf_vbo[buf_vbo_len++] = v / tex_height;
         }
-
+#ifndef TARGET_N3DS
         if (use_fog) {
             buf_vbo[buf_vbo_len++] = rdp.fog_color.r / 255.0f;
             buf_vbo[buf_vbo_len++] = rdp.fog_color.g / 255.0f;
             buf_vbo[buf_vbo_len++] = rdp.fog_color.b / 255.0f;
             buf_vbo[buf_vbo_len++] = v_arr[i]->color.a / 255.0f; // fog factor (not alpha)
         }
-
+#endif
         for (int j = 0; j < num_inputs; j++) {
             struct RGBA *color;
             struct RGBA tmp;
@@ -995,6 +994,9 @@ static void gfx_sp_moveword(uint8_t index, uint16_t offset, uint32_t data) {
         case G_MW_FOG:
             rsp.fog_mul = (int16_t)(data >> 16);
             rsp.fog_offset = (int16_t)data;
+#ifdef TARGET_N3DS
+            gfx_rapi->set_fog(rsp.fog_mul, rsp.fog_offset);
+#endif
             break;
     }
 }
@@ -1170,6 +1172,9 @@ static void gfx_dp_set_prim_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 }
 
 static void gfx_dp_set_fog_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+#ifdef TARGET_N3DS
+    gfx_rapi->set_fog_color(r, g, b, a);
+#endif
     rdp.fog_color.r = r;
     rdp.fog_color.g = g;
     rdp.fog_color.b = b;

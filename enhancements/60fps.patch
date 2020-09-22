@@ -657,7 +657,7 @@ index 8d4daa5..7ce2b22 100644
      gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(mtx++),
                G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
 diff --git a/src/game/ingame_menu.c b/src/game/ingame_menu.c
-index b9a43df..281e0f3 100644
+index 24054ff..57dce69 100644
 --- a/src/game/ingame_menu.c
 +++ b/src/game/ingame_menu.c
 @@ -111,6 +111,41 @@ u8 gMenuHoldKeyIndex = 0;
@@ -1805,7 +1805,7 @@ index 3673a1a..e65c3bd 100644
      switch (transType) {
          case WARP_TRANSITION_FADE_FROM_COLOR:
 diff --git a/src/menu/intro_geo.c b/src/menu/intro_geo.c
-index 2d49d06..31cb72f 100644
+index cf96247..d1a4d85 100644
 --- a/src/menu/intro_geo.c
 +++ b/src/menu/intro_geo.c
 @@ -1,5 +1,6 @@
@@ -1857,10 +1857,10 @@ index 2d49d06..31cb72f 100644
          gSPDisplayList(displayListIter++, &intro_seg7_dl_0700B3A0);
          gSPPopMatrix(displayListIter++, G_MTX_MODELVIEW);
 diff --git a/src/pc/gfx/gfx_citro3d.c b/src/pc/gfx/gfx_citro3d.c
-index be2c36b..7f085f6 100644
+index 39841cb..d422e29 100644
 --- a/src/pc/gfx/gfx_citro3d.c
 +++ b/src/pc/gfx/gfx_citro3d.c
-@@ -836,7 +836,7 @@ static void gfx_citro3d_init(void)
+@@ -774,7 +774,7 @@ static void gfx_citro3d_init(void)
      C3D_DepthTest(false, GPU_LEQUAL, GPU_WRITE_ALL);
      C3D_AlphaTest(true, GPU_GREATER, 0x00);
  

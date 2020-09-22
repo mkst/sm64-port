@@ -30,8 +30,12 @@ struct GfxRenderingAPI {
     void (*start_frame)(void);
     void (*end_frame)(void);
     void (*finish_render)(void);
+#ifdef TARGET_N3DS
+    void (*set_fog)(uint16_t from, uint16_t to);
+    void (*set_fog_color)(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 #ifdef ENABLE_N3DS_3D_MODE
     void (*set_is_2d)(bool is_2d);
+#endif
 #endif
 };
 

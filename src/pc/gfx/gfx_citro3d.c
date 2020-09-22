@@ -13,6 +13,7 @@
 #include "gfx_rendering_api.h"
 
 #define TEXTURE_POOL_SIZE 4096
+#define FOG_LUT_SIZE 32
 
 static Gfx3DSMode sCurrentGfx3DSMode = GFX_3DS_MODE_NORMAL;
 
@@ -31,11 +32,20 @@ struct ShaderProgram {
     bool swap_input;
     C3D_TexEnv texenv0;
     C3D_TexEnv texenv1;
-    C3D_TexEnv fog_texenv0;
 };
 
 static struct ShaderProgram sShaderProgramPool[32];
 static uint8_t sShaderProgramPoolSize;
+
+struct FogLut {
+    uint32_t id;
+    C3D_FogLut lut;
+};
+
+static struct FogLut fog_lut[FOG_LUT_SIZE];
+static uint8_t fog_lut_size;
+static uint8_t current_fog_idx;
+static uint32_t fog_color;
 
 static u32 sTexBuf[16 * 1024] __attribute__((aligned(32)));
 static C3D_Tex sTexturePool[TEXTURE_POOL_SIZE];
@@ -220,16 +230,6 @@ static void update_tex_env(struct ShaderProgram *prg, bool swap_input)
     }
 
     prg->swap_input = swap_input;
-
-    if (prg->cc_features.opt_fog)
-    {
-        C3D_TexEnvInit(&prg->fog_texenv0);
-        C3D_TexEnvColor(&prg->fog_texenv0, 0);
-        C3D_TexEnvFunc(&prg->fog_texenv0, C3D_Both, GPU_REPLACE);
-        C3D_TexEnvSrc(&prg->fog_texenv0, C3D_Both, GPU_PRIMARY_COLOR, 0, 0);
-        C3D_TexEnvOpRgb(&prg->fog_texenv0, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR);
-        C3D_TexEnvOpAlpha(&prg->fog_texenv0, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);
-    }
 }
 
 static void update_shader(bool swap_input)
@@ -249,6 +249,15 @@ static void update_shader(bool swap_input)
     } else {
         C3D_SetTexEnv(0, &prg->texenv0);
         C3D_TexEnvInit(C3D_GetTexEnv(1));
+    }
+
+    if (prg->cc_features.opt_fog)
+    {
+        C3D_FogGasMode(GPU_FOG, GPU_PLAIN_DENSITY, true);
+        C3D_FogColor(fog_color);
+        C3D_FogLutBind(&fog_lut[current_fog_idx].lut);
+    } else {
+        C3D_FogGasMode(GPU_NO_FOG, GPU_PLAIN_DENSITY, false);
     }
 
     if (prg->cc_features.opt_texture_edge && prg->cc_features.opt_alpha)
@@ -282,10 +291,6 @@ static struct ShaderProgram *gfx_citro3d_create_and_load_new_shader(uint32_t sha
     if (prg->cc_features.used_textures[0] || prg->cc_features.used_textures[1])
     {
         prg->num_floats += 2;
-    }
-    if (prg->cc_features.opt_fog)
-    {
-        prg->num_floats += 4;
     }
     prg->num_floats += prg->cc_features.num_inputs * (prg->cc_features.opt_alpha ? 4 : 3);
 
@@ -538,46 +543,7 @@ static u32 vec4ToU32Color(float r, float g, float b, float a)
     return (a2 << 24) | (b2 << 16) | (g2 << 8) | r2;
 }
 
-static void renderFog(float buf_vbo[], UNUSED size_t buf_vbo_len, size_t buf_vbo_num_tris)
-{
-    C3D_SetTexEnv(0, &sShaderProgramPool[sCurShader].fog_texenv0);
-    C3D_TexEnvInit(C3D_GetTexEnv(1));
 
-    C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ZERO, GPU_DST_ALPHA);
-    C3D_DepthTest(sDepthTestOn, GPU_LEQUAL, GPU_WRITE_COLOR);
-
-    int offset = 0;
-    float* dst = &((float*)sVboBuffer)[sBufIdx * VERTEX_SHADER_SIZE];
-    bool hasTex = sShaderProgramPool[sCurShader].cc_features.used_textures[0] || sShaderProgramPool[sCurShader].cc_features.used_textures[1];
-    for (u32 i = 0; i < 3 * buf_vbo_num_tris; i++)
-    {
-        // vertex
-        *dst++ = buf_vbo[offset + 0];
-        *dst++ = buf_vbo[offset + 1];
-        *dst++ = buf_vbo[offset + 2];
-        *dst++ = buf_vbo[offset + 3];
-        int vtxOffs = 4;
-        if (hasTex)
-            vtxOffs += 2;
-        // no texture
-        *dst++ = 0;
-        *dst++ = 0;
-        // fog rgba
-        *dst++ = buf_vbo[offset + vtxOffs++];
-        *dst++ = buf_vbo[offset + vtxOffs++];
-        *dst++ = buf_vbo[offset + vtxOffs++];
-        *dst++ = buf_vbo[offset + vtxOffs++];
-
-        offset += sVtxUnitSize;
-    }
-
-    C3D_DrawArrays(GPU_TRIANGLES, sBufIdx, buf_vbo_num_tris * 3);
-    sBufIdx += buf_vbo_num_tris * 3;
-
-    update_shader(false);
-    applyBlend();
-    update_depth();
-}
 
 static void renderTwoColorTris(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
 {
@@ -586,8 +552,7 @@ static void renderTwoColorTris(float buf_vbo[], size_t buf_vbo_len, size_t buf_v
     bool hasTex = sShaderProgramPool[sCurShader].cc_features.used_textures[0] || sShaderProgramPool[sCurShader].cc_features.used_textures[1];
     bool hasColor = sShaderProgramPool[sCurShader].cc_features.num_inputs > 0;
     bool hasAlpha = sShaderProgramPool[sCurShader].cc_features.opt_alpha;
-    bool hasFog = sShaderProgramPool[sCurShader].cc_features.opt_fog;
-    if (hasFog)
+    if (sShaderProgramPool[sCurShader].cc_features.opt_fog)
         C3D_TexEnvColor(C3D_GetTexEnv(2), vec4ToU32Color(buf_vbo[hasTex ? 6 : 4], buf_vbo[hasTex ? 7 : 5], buf_vbo[hasTex ? 8 : 6], buf_vbo[hasTex ? 9 : 7]));
     u32 firstColor0, firstColor1;
     bool color0Constant = true;
@@ -598,8 +563,6 @@ static void renderTwoColorTris(float buf_vbo[], size_t buf_vbo_len, size_t buf_v
         int vtxOffs = 4;
         if (hasTex)
             vtxOffs += 2;
-        if (hasFog)
-            vtxOffs += 4;
         u32 color0 = vec4ToU32Color(
             buf_vbo[offset + vtxOffs],
             buf_vbo[offset + vtxOffs + 1],
@@ -645,8 +608,6 @@ static void renderTwoColorTris(float buf_vbo[], size_t buf_vbo_len, size_t buf_v
             *dst++ = 0;
             *dst++ = 0;
         }
-        if (hasFog)
-            vtxOffs += 4;
         if (color0Constant)
             vtxOffs += hasAlpha ? 4 : 3;
         if (hasColor)
@@ -669,9 +630,6 @@ static void renderTwoColorTris(float buf_vbo[], size_t buf_vbo_len, size_t buf_v
 
     C3D_DrawArrays(GPU_TRIANGLES, sBufIdx, buf_vbo_num_tris * 3);
     sBufIdx += buf_vbo_num_tris * 3;
-
-    if (hasFog)
-        renderFog(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
 }
 
 static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
@@ -682,7 +640,7 @@ static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size
         return;
     }
 
-    if (sShaderProgramPool[sCurShader].cc_features.num_inputs >= 2)
+    if (sShaderProgramPool[sCurShader].cc_features.num_inputs > 1)
     {
         renderTwoColorTris(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
         return;
@@ -693,7 +651,6 @@ static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size
     bool hasTex = sShaderProgramPool[sCurShader].cc_features.used_textures[0] || sShaderProgramPool[sCurShader].cc_features.used_textures[1];
     bool hasColor = sShaderProgramPool[sCurShader].cc_features.num_inputs > 0;
     bool hasAlpha = sShaderProgramPool[sCurShader].cc_features.opt_alpha;
-    bool hasFog = sShaderProgramPool[sCurShader].cc_features.opt_fog;
     for (u32 i = 0; i < 3 * buf_vbo_num_tris; i++)
     {
         *dst++ = buf_vbo[offset + 0];
@@ -711,8 +668,6 @@ static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size
             *dst++ = 0;
             *dst++ = 0;
         }
-        if (hasFog)
-            vtxOffs += 4;
         if (hasColor)
         {
             *dst++ = buf_vbo[offset + vtxOffs++];
@@ -733,9 +688,6 @@ static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size
 
     C3D_DrawArrays(GPU_TRIANGLES, sBufIdx, buf_vbo_num_tris * 3);
     sBufIdx += buf_vbo_num_tris * 3;
-
-    if (hasFog)
-        renderFog(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
 }
 
 #ifdef ENABLE_N3DS_3D_MODE
@@ -758,29 +710,18 @@ void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
 static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
 {
 #ifdef ENABLE_N3DS_3D_MODE
-    // reset model and projections
-    Mtx_Identity(&modelView);
     Mtx_Identity(&projection);
-
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
     {
         sOrigBufIdx = sBufIdx;
-        iod = gSliderLevel / 4.0f;
+        iod = gSliderLevel / 10.0f;
 
         if (!sIs2D)
         {
-            Mtx_PerspStereoTilt(&projection, fov, 1.0f , 0.1f, 10.0f, -iod, focalLen, false);
-            // hacks
-            (&projection)->r[2].z = 1.0f;
-            (&projection)->r[3].w = 1.0f;
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
-            // undo the rotation applied by tilt
-            Mtx_RotateZ(&modelView, 0.25f*M_TAU, true);
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
+            projection.r[1].z = -iod * (1.0f + iod); // left/right
         }
     }
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
 #endif
     // left screen
     gfx_citro3d_frame_draw_on(gTarget);
@@ -793,10 +734,7 @@ static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_le
 
         if (!sIs2D)
         {
-            Mtx_PerspStereoTilt(&projection, fov, 1.0f, 0.1f, 10.0f, iod, focalLen, false);
-            // hacks
-            (&projection)->r[2].z = 1.0f;
-            (&projection)->r[3].w = 1.0f;
+            projection.r[1].z = iod * (1.0f + iod); // left/right
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
         }
         // draw right screen
@@ -857,14 +795,17 @@ static void gfx_citro3d_start_frame(void)
 #ifdef ENABLE_N3DS_3D_MODE
     if (gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22)
         C3D_RenderTargetClear(gTargetRight, C3D_CLEAR_ALL, 0x000000FF, 0xFFFFFFFF);
-#else
-    // reset model and projections
-    Mtx_Identity(&modelView);
-    Mtx_Identity(&projection);
+#endif
 
+    // reset model
+    Mtx_Identity(&modelView);
+    // 3DS screen is rotated 90 degrees
+    Mtx_RotateZ(&modelView, 0.75f*M_TAU, false);
+    // reset projection
+    Mtx_Identity(&projection);
+    // set uniforms
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
-#endif
 }
 
 static void gfx_citro3d_on_resize(void)
@@ -875,7 +816,6 @@ static void gfx_citro3d_end_frame(void)
 {
     // TOOD: draw the minimap here
     gfx_3ds_menu_draw(sVboBuffer, sBufIdx, gShowConfigMenu);
-
     // set the texenv back
     update_shader(false);
 
@@ -884,6 +824,43 @@ static void gfx_citro3d_end_frame(void)
 
 static void gfx_citro3d_finish_render(void)
 {
+}
+
+static void gfx_citro3d_set_fog(uint16_t from, uint16_t to)
+{
+    // dumb enough
+    uint32_t id = (from << 16) | to;
+    // current already loaded
+    if (fog_lut[current_fog_idx].id == id)
+        return;
+    // lut already calculated
+    for (int i = 0; i < fog_lut_size; i++)
+    {
+        if (fog_lut[i].id == id)
+        {
+            current_fog_idx = i;
+            return;
+        }
+    }
+    // new lut required
+    if (fog_lut_size == FOG_LUT_SIZE)
+    {
+        printf("Fog exhausted!\n");
+        return;
+    }
+
+    current_fog_idx = fog_lut_size++;
+    (&fog_lut[current_fog_idx])->id = id;
+
+    // FIXME: The near/far factors are personal preference
+    // BOB:  6400, 59392 => 0.16, 116
+    // JRB:  1280, 64512 => 0.80, 126
+    FogLut_Exp(&fog_lut[current_fog_idx].lut, 0.05f, 1.5f, 1024 / (float)from, ((float)to) / 512);
+}
+
+static void gfx_citro3d_set_fog_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    fog_color = (a << 24) | (b << 16) | (g << 8) | r;
 }
 
 struct GfxRenderingAPI gfx_citro3d_api = {
@@ -908,11 +885,11 @@ struct GfxRenderingAPI gfx_citro3d_api = {
     gfx_citro3d_on_resize,
     gfx_citro3d_start_frame,
     gfx_citro3d_end_frame,
-#ifdef ENABLE_N3DS_3D_MODE
     gfx_citro3d_finish_render,
+    gfx_citro3d_set_fog,
+    gfx_citro3d_set_fog_color,
+#ifdef ENABLE_N3DS_3D_MODE
     gfx_citro3d_is_2d
-#else
-    gfx_citro3d_finish_render
 #endif
 };
 

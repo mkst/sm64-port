@@ -7,7 +7,7 @@ A prior copy of the game is required to extract the assets.
 
  - Based off [Refresh 11](https://github.com/sm64-port/sm64-port/commit/9214dddabcce4723d9b6cda2ebccbac209f6447d)
  - Multi-threaded; audio thread runs on Core 1 on O3DS and Core 2 on N3DS; needs [Luma v10.1.1](https://github.com/LumaTeam/Luma3DS/releases) or higher
- - Naive frame-skip if frame takes longer than 33.3ms (1 / 30 FPS) to render
+ - Naïve frame-skip if frame takes longer than 33.3ms (1 / 30 FPS) to render
      - Disable by building with `DISABLE_N3DS_FRAMESKIP=1`
  - Configurable controls via `sm64config.txt`
      - Use [this](https://codepen.io/benoitcaron/full/abNZrbP) online editor from [BenoitCaron](https://github.com/BenoitCaron).
@@ -116,8 +116,6 @@ git clone https://github.com/mkst/sm64-port.git
 
 cd sm64-port
 
-git checkout 3ds-port
-
 # go and copy the baserom to c:\temp (create that directory in Windows Explorer)
 cp /mnt/c/temp/baserom.us.z64 ./
 
@@ -133,16 +131,18 @@ make -j4
 
 ### Windows (MSYS2)
 
-WSL is the preferred route, but you can also use MSYS2 to compile.
+WSL is the preferred route, but you can also use MSYS2 (MINGW64) to compile.
+
+For each instruction copy and paste the contents into the **MING64** console.
 
 **Get MSYS2:**
 
 Navigate to https://www.msys2.org/ and download the installer.
 
-**Install and Run MSYS2:**
+**Install and Run MINGW64:**
 
 ```
-Next, Next, Next, Finish (keep the box checked to run now).
+Next, Next, Next, Finish (keep the box checked to "Run MSYS 64bit now").
 ```
 
 **Add keyserver for package validation:**
@@ -175,7 +175,7 @@ EOF
 pacman -Syu --noconfirm
 ```
 
-MSYS2 may close itself when done, if it does, find `MSYS2 MinGW 64bit` in your Start Menu and open again.
+MINGW64 may close itself when done, if it does, find `MSYS2 MinGW 64bit` in your Start Menu and open again.
 
 **Install Dependencies:**
 
@@ -186,10 +186,10 @@ pacman -S 3ds-dev git make python3 mingw-w64-x86_64-gcc --noconfirm
 **Setup Environment Variables:**
 
 ```sh
-export PATH=$PATH:/opt/devkitpro/tools/bin
-export DEVKITPRO=/opt/devkitpro
-export DEVKITARM=/opt/devkitpro/devkitARM
-export DEVKITPPC=/opt/devkitpro/devkitPPC
+export PATH=$PATH:/opt/devkitpro/tools/bin && echo "OK!"
+export DEVKITPRO=/opt/devkitpro && echo "OK!"
+export DEVKITARM=/opt/devkitpro/devkitARM && echo "OK!"
+export DEVKITPPC=/opt/devkitpro/devkitPPC && echo "OK!"
 ```
 
 **Clone Repository:**
@@ -201,20 +201,14 @@ git clone https://github.com/mkst/sm64-port.git
 **Navigate into freshly checked out repo:**
 
 ```sh
-cd sm64-port
+cd sm64-port && echo "OK!"
 ```
 
 **Copy in baserom.XX.z64:**
 
-This assumes that you have create the directory `c:\temp` via Windows Explorer and copied the `baserom.XX.z64` to it.
+This assumes that you have create the directory `c:\temp` via Windows Explorer and copied the Super Mario 64 `baserom.XX.z64` to it.
 ```sh
-cp /c/temp/baserom.us.z64 ./ # change 'us' to 'eu', 'jp' or 'sh' as appropriate
-```
-
-**Checkout this branch:**
-
-```sh
-git checkout 3ds-port
+cp /c/temp/baserom.us.z64 ./ && echo "OK!" # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 **Compile:**

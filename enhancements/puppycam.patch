@@ -1851,7 +1851,7 @@ index 8d4daa5..c1f2099 100644
  
          if (hudDisplayFlags & HUD_DISPLAY_FLAG_TIMER) {
 diff --git a/src/game/ingame_menu.c b/src/game/ingame_menu.c
-index b9a43df..2ef25df 100644
+index 24054ff..f942731 100644
 --- a/src/game/ingame_menu.c
 +++ b/src/game/ingame_menu.c
 @@ -22,6 +22,7 @@
@@ -1862,7 +1862,7 @@ index b9a43df..2ef25df 100644
  
  u16 gDialogColorFadeTimer;
  s8 gLastDialogLineNum;
-@@ -2603,7 +2604,10 @@ s16 render_pause_courses_and_castle(void) {
+@@ -2621,7 +2622,10 @@ s16 render_pause_courses_and_castle(void) {
  #ifdef VERSION_EU
      gInGameLanguage = eu_get_language();
  #endif
@@ -1874,7 +1874,7 @@ index b9a43df..2ef25df 100644
      switch (gDialogBoxState) {
          case DIALOG_STATE_OPENING:
              gDialogLineNum = 1;
-@@ -2679,6 +2683,16 @@ s16 render_pause_courses_and_castle(void) {
+@@ -2697,6 +2701,16 @@ s16 render_pause_courses_and_castle(void) {
      if (gDialogTextAlpha < 250) {
          gDialogTextAlpha += 25;
      }
