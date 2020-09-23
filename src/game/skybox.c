@@ -234,6 +234,16 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
     s16 y = SKYBOX_HEIGHT - tileIndex / SKYBOX_COLS * SKYBOX_TILE_HEIGHT;
 
     if (verts != NULL) {
+#ifdef ENABLE_N3DS_3D_MODE
+        make_vertex(verts, 0, x, y, -3, 0, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+                    sSkyboxColors[colorIndex][2], 255);
+        make_vertex(verts, 1, x, y - SKYBOX_TILE_HEIGHT, -3, 0, 31 << 5, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+                    sSkyboxColors[colorIndex][2], 255);
+        make_vertex(verts, 2, x + SKYBOX_TILE_WIDTH, y - SKYBOX_TILE_HEIGHT, -3, 31 << 5, 31 << 5, sSkyboxColors[colorIndex][0],
+                    sSkyboxColors[colorIndex][1], sSkyboxColors[colorIndex][2], 255);
+        make_vertex(verts, 3, x + SKYBOX_TILE_WIDTH, y, -3, 31 << 5, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
+                    sSkyboxColors[colorIndex][2], 255);
+#else
         make_vertex(verts, 0, x, y, -1, 0, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
         make_vertex(verts, 1, x, y - SKYBOX_TILE_HEIGHT, -1, 0, 31 << 5, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
@@ -242,8 +252,10 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
                     sSkyboxColors[colorIndex][1], sSkyboxColors[colorIndex][2], 255);
         make_vertex(verts, 3, x + SKYBOX_TILE_WIDTH, y, -1, 31 << 5, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
+#endif
     } else {
     }
+	
     return verts;
 }
 
@@ -309,17 +321,12 @@ Gfx *init_skybox_display_list(s8 player, s8 background, s8 colorIndex) {
         Mtx *ortho = create_skybox_ortho_matrix(player);
 
         gSPDisplayList(dlist++, dl_skybox_begin);
-#ifdef ENABLE_N3DS_3D_MODE
-        gDPSet2d(dlist++, 1);
-#endif
+
         gSPMatrix(dlist++, VIRTUAL_TO_PHYSICAL(ortho), G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH);
         gSPDisplayList(dlist++, dl_skybox_tile_tex_settings);
         draw_skybox_tile_grid(&dlist, background, player, colorIndex);
         gSPDisplayList(dlist++, dl_skybox_end);
-#ifdef ENABLE_N3DS_3D_MODE
-        gDPForceFlush(dlist++); // flush skybox
-        gDPSet2d(dlist++, 0); // reset 2D mode
-#endif
+
         gSPEndDisplayList(dlist);
 
     }
