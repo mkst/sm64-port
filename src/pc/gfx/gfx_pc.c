@@ -16,6 +16,10 @@
 #include "gfx_rendering_api.h"
 #include "gfx_screen_config.h"
 
+#ifdef ENABLE_N3DS_3D_MODE
+#include "gfx_3ds.h"
+#endif
+
 #define SUPPORT_CHECK(x) assert(x)
 
 // SCALE_M_N: upscale/downscale M-bit integer to N-bit
@@ -591,6 +595,9 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
         float w = v->ob[0] * rsp.MP_matrix[0][3] + v->ob[1] * rsp.MP_matrix[1][3] + v->ob[2] * rsp.MP_matrix[2][3] + rsp.MP_matrix[3][3];
 
         x = gfx_adjust_x_for_aspect_ratio(x);
+#ifdef ENABLE_N3DS_3D_MODE
+        float wx = w * 1.2f; // expanded w-range for testing vertex's x position, value is approximate for max sliderlevel
+#endif
 
         short U = v->tc[0] * rsp.texture_scaling_factor.s >> 16;
         short V = v->tc[1] * rsp.texture_scaling_factor.t >> 16;
@@ -651,8 +658,19 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
 
         // trivial clip rejection
         d->clip_rej = 0;
+#ifdef ENABLE_N3DS_3D_MODE
+    if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f) { // enable expanded range only when 3D is on
+        if (x < -wx) d->clip_rej |= 1; // we only want x tested against the expanded range
+        if (x > wx) d->clip_rej |= 2;
+    }
+    else {
         if (x < -w) d->clip_rej |= 1;
         if (x > w) d->clip_rej |= 2;
+    }
+#else
+        if (x < -w) d->clip_rej |= 1;
+        if (x > w) d->clip_rej |= 2;
+#endif
         if (y < -w) d->clip_rej |= 4;
         if (y > w) d->clip_rej |= 8;
         if (z < -w) d->clip_rej |= 16;
