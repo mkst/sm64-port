@@ -658,19 +658,24 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
 #ifdef ENABLE_N3DS_3D_MODE
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f) { // change clipping when 3D is enabled
         float wx = w * 1.2f; // expanded w-range for testing vertex's x position, value is approximate for max sliderlevel
-        if (x < -wx) d->clip_rej |= 1; // only x should be tested against the expanded range
+        if (x < -wx) d->clip_rej |= 1; // testing x needs a larger expanded range
         if (x > wx) d->clip_rej |= 2;
+        wx = w * 1.15f; // turns out y needs a tiny mod too for the skybox
+        if (y < -wx) d->clip_rej |= 4;
+        if (y > wx) d->clip_rej |= 8;
     }
     else {
         if (x < -w) d->clip_rej |= 1;
         if (x > w) d->clip_rej |= 2;
+        if (y < -w) d->clip_rej |= 4;
+        if (y > w) d->clip_rej |= 8;
     }
 #else
         if (x < -w) d->clip_rej |= 1;
         if (x > w) d->clip_rej |= 2;
-#endif
         if (y < -w) d->clip_rej |= 4;
         if (y > w) d->clip_rej |= 8;
+#endif
         if (z < -w) d->clip_rej |= 16;
         if (z > w) d->clip_rej |= 32;
 
