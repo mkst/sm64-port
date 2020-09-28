@@ -36,7 +36,7 @@ static void gfx_3ds_menu_draw_background(float *vbo_buffer)
 
     C3D_TexEnv* env = C3D_GetTexEnv(0);
     C3D_TexEnvInit(env);
-    C3D_TexEnvColor(env, 0xFF070707);
+    C3D_TexEnvColor(env, 0x66000000);
     C3D_TexEnvSrc(env, C3D_Both, GPU_CONSTANT, 0, 0);
     C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
 
@@ -150,16 +150,16 @@ void gfx_3ds_menu_init()
     C3D_TexSetFilter(&exit_tex, GPU_LINEAR, GPU_NEAREST);
 }
 
-void gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled)
+uint32_t gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled)
 {
-    C3D_FrameDrawOn(gTargetBottom);
-
     buffer_offset = vertex_offset;
     gfx_3ds_menu_draw_background(vertex_buffer);
     if (enabled)
         gfx_3ds_menu_draw_buttons(vertex_buffer);
     if (debounce)
         debounce--;
+
+    return buffer_offset - vertex_offset;
 }
 
 #endif

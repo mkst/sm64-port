@@ -162,6 +162,12 @@ static void gfx_set_is_2d(bool is_2d)
 {
     gfx_rapi->set_is_2d(is_2d);
 }
+static bool n64_native_res;
+static void gfx_set_is_hud(bool is_hud)
+{
+    n64_native_res = is_hud;
+    gfx_rapi->set_is_hud(is_hud);
+}
 #endif
 
 static void gfx_flush(void) {
@@ -580,6 +586,10 @@ static void gfx_sp_pop_matrix(uint32_t count) {
 }
 
 static float gfx_adjust_x_for_aspect_ratio(float x) {
+#ifdef ENABLE_N3DS_3D_MODE
+    if (n64_native_res)
+        return x;
+#endif
     return x * (4.0f / 3.0f) / ((float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height);
 }
 
@@ -1561,6 +1571,9 @@ static void gfx_run_dl(Gfx* cmd) {
                 break;
             case G_SPECIAL_2:
                 gfx_flush();
+                break;
+            case G_SPECIAL_3:
+                gfx_set_is_hud(cmd->words.w1 == 1);
                 break;
 #endif
         }

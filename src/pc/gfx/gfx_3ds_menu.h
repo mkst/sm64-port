@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include "gfx_3ds_common.h"
+
 #include "src/minimap/textures/mode_400_t3x.h"
 #include "src/minimap/textures/mode_800_t3x.h"
 #include "src/minimap/textures/aa_on_t3x.h"
@@ -26,36 +28,9 @@ typedef enum {
 } menu_action;
 
 void gfx_3ds_menu_init();
-void gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled);
+uint32_t gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled);
 menu_action gfx_3ds_menu_on_touch(int x, int y);
 
-typedef struct {
-    float xyzw[4];
-    float texcoord[2];
-    float rgba[4];
-} vertex;
 
-
-static const vertex vertex_list_color[] =
-{
-    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { { 320.0f, 240.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { { 320.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-
-    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { {   0.0f, 240.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { { 320.0f, 240.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } }
-};
-
-static const vertex vertex_list_button[] =
-{
-    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { {  64.0f,  64.0f, 0.5f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { {  64.0f,   0.0f, 0.5f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-
-    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { {   0.0f,  64.0f, 0.5f, 1.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
-    { {  64.0f,  64.0f, 0.5f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } }
-};
 
 #endif

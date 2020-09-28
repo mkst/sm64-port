@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 3eaae50..b68f597 100644
+index a180188..f4ef978 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -264,7 +264,7 @@ else
@@ -11,7 +11,7 @@ index 3eaae50..b68f597 100644
  endif
  endif
  
-@@ -671,6 +671,8 @@ $(BUILD_DIR)/include/text_strings.h: $(BUILD_DIR)/include/text_menu_strings.h
+@@ -668,6 +668,8 @@ $(BUILD_DIR)/include/text_strings.h: $(BUILD_DIR)/include/text_menu_strings.h
  $(BUILD_DIR)/src/menu/file_select.o: $(BUILD_DIR)/include/text_strings.h
  $(BUILD_DIR)/src/menu/star_select.o: $(BUILD_DIR)/include/text_strings.h
  $(BUILD_DIR)/src/game/ingame_menu.o: $(BUILD_DIR)/include/text_strings.h
@@ -1829,7 +1829,7 @@ index a5cd80c..a3d03d1 100644
  #ifdef TARGET_N64
      rendering_init();
 diff --git a/src/game/hud.c b/src/game/hud.c
-index 8d4daa5..c1f2099 100644
+index b7234a2..a2d6244 100644
 --- a/src/game/hud.c
 +++ b/src/game/hud.c
 @@ -13,6 +13,7 @@
@@ -1840,10 +1840,10 @@ index 8d4daa5..c1f2099 100644
  
  /* @file hud.c
   * This file implements HUD rendering and power meter animations.
-@@ -469,7 +470,8 @@ void render_hud(void) {
- 
-         if (hudDisplayFlags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) {
-             render_hud_power_meter();
+@@ -505,7 +506,8 @@ void render_hud(void) {
+             gDPSetHud(gDisplayListHead++, 1);
+             gDPSet2d(gDisplayListHead++, 0);
+ #endif
 -            render_hud_camera_status();
 +            if (!newcam_active)
 +                render_hud_camera_status();
@@ -1851,7 +1851,7 @@ index 8d4daa5..c1f2099 100644
  
          if (hudDisplayFlags & HUD_DISPLAY_FLAG_TIMER) {
 diff --git a/src/game/ingame_menu.c b/src/game/ingame_menu.c
-index b9a43df..2ef25df 100644
+index 24054ff..f942731 100644
 --- a/src/game/ingame_menu.c
 +++ b/src/game/ingame_menu.c
 @@ -22,6 +22,7 @@
@@ -1862,7 +1862,7 @@ index b9a43df..2ef25df 100644
  
  u16 gDialogColorFadeTimer;
  s8 gLastDialogLineNum;
-@@ -2603,7 +2604,10 @@ s16 render_pause_courses_and_castle(void) {
+@@ -2621,7 +2622,10 @@ s16 render_pause_courses_and_castle(void) {
  #ifdef VERSION_EU
      gInGameLanguage = eu_get_language();
  #endif
@@ -1874,7 +1874,7 @@ index b9a43df..2ef25df 100644
      switch (gDialogBoxState) {
          case DIALOG_STATE_OPENING:
              gDialogLineNum = 1;
-@@ -2679,6 +2683,16 @@ s16 render_pause_courses_and_castle(void) {
+@@ -2697,6 +2701,16 @@ s16 render_pause_courses_and_castle(void) {
      if (gDialogTextAlpha < 250) {
          gDialogTextAlpha += 25;
      }

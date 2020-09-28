@@ -31,6 +31,7 @@ struct GfxRenderingAPI {
     void (*end_frame)(void);
     void (*finish_render)(void);
 #ifdef ENABLE_N3DS_3D_MODE
+    void (*set_is_hud)(bool is_hud);
     void (*set_is_2d)(bool is_2d);
 #endif
 };

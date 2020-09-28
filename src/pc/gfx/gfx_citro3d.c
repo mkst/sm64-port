@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 #include "gfx_3ds.h"
+#include "gfx_3ds_minimap.h"
 #include "gfx_3ds_menu.h"
 
 #include "gfx_cc.h"
@@ -66,6 +67,7 @@ static bool scissor;
 static C3D_Mtx modelView, projection;
 
 #ifdef ENABLE_N3DS_3D_MODE
+static bool sIsHud;
 static int sOrigBufIdx;
 static float iod; // determined by 3D slider position
 static const float focalLen = 0.75f;
@@ -744,6 +746,10 @@ static void gfx_citro3d_is_2d(bool is_2d)
 {
     sIs2D = is_2d;
 }
+static void gfx_citro3d_is_hud(bool is_hud)
+{
+    sIsHud = is_hud;
+}
 #endif
 
 void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
@@ -764,6 +770,15 @@ static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_le
 
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
+
+    if (sIsHud)
+    {
+        C3D_FrameDrawOn(gTargetBottom);
+
+        gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
+        return;
+    }
+
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
     {
         sOrigBufIdx = sBufIdx;
@@ -837,6 +852,8 @@ static void gfx_citro3d_init(void)
     C3D_AlphaTest(true, GPU_GREATER, 0x00);
 
     C3D_FrameRate(30);
+
+    gfx_3ds_init_minimap();
 }
 
 static void gfx_citro3d_start_frame(void)
@@ -851,7 +868,6 @@ static void gfx_citro3d_start_frame(void)
         gfx_citro3d_set_viewport(0, 0, 400, 240);
         sCurrentGfx3DSMode = gGfx3DSMode;
     }
-
     C3D_RenderTargetClear(gTarget, C3D_CLEAR_ALL, 0x000000FF, 0xFFFFFFFF);
     C3D_RenderTargetClear(gTargetBottom, C3D_CLEAR_ALL, 0x000000FF, 0xFFFFFFFF);
 #ifdef ENABLE_N3DS_3D_MODE
@@ -865,6 +881,13 @@ static void gfx_citro3d_start_frame(void)
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
 #endif
+
+    C3D_FrameDrawOn(gTargetBottom);
+    uint32_t tris = gfx_3ds_draw_minimap(sVboBuffer, sBufIdx);
+    if (gShowConfigMenu)
+        tris += gfx_3ds_menu_draw(sVboBuffer, sBufIdx + tris, true);
+
+    sBufIdx += tris;
 }
 
 static void gfx_citro3d_on_resize(void)
@@ -873,9 +896,6 @@ static void gfx_citro3d_on_resize(void)
 
 static void gfx_citro3d_end_frame(void)
 {
-    // TOOD: draw the minimap here
-    gfx_3ds_menu_draw(sVboBuffer, sBufIdx, gShowConfigMenu);
-
     // set the texenv back
     update_shader(false);
 
@@ -910,6 +930,7 @@ struct GfxRenderingAPI gfx_citro3d_api = {
     gfx_citro3d_end_frame,
 #ifdef ENABLE_N3DS_3D_MODE
     gfx_citro3d_finish_render,
+    gfx_citro3d_is_hud,
     gfx_citro3d_is_2d
 #else
     gfx_citro3d_finish_render
