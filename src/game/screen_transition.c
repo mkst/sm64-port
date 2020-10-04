@@ -13,11 +13,6 @@
 #include "segment2.h"
 #include "sm64.h"
 
-#ifdef ENABLE_N3DS_3D_MODE
-#define GFX_CITRO3D_H
-#include "pc/gfx/gfx_citro3d.h"
-#endif
-
 u8 sTransitionColorFadeCount[4] = { 0 };
 u16 sTransitionTextureFadeCount[2] = { 0 };
 
@@ -316,7 +311,7 @@ Gfx *geo_cannon_circle_base(s32 callContext, struct GraphNode *node, UNUSED Mat4
         && gCurrentArea->camera->mode == CAMERA_MODE_INSIDE_CANNON) {
         graphNode->fnNode.node.flags = (graphNode->fnNode.node.flags & 0xFF) | 0x500;
 #ifdef ENABLE_N3DS_3D_MODE
-        iodSet(iodCannon);
+        gDPSetIod(gDisplayListHead++, iodCannon);
 #endif
         dlist = render_cannon_circle_base();
     }

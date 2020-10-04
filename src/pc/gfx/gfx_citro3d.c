@@ -76,16 +76,17 @@ static bool scissor;
 static C3D_Mtx modelView, projection;
 
 #ifdef ENABLE_N3DS_3D_MODE
-#define GFX_CITRO3D_H
-#include "gfx_citro3d.h"
 static int sOrigBufIdx;
 float iodZ = 8.0f;
 float iodW = 16.0f;
 
 void stereoTilt(C3D_Mtx* mtx, float z, float w)
 {
-
     /** ********************** Default L/R stereo perspective function with x/y tilt removed **********************
+    
+        Preserving this to show what the proper function *should* look like.
+        TODO: move to gfx_pc before RDP's mv*p happens, for proper and portable stereoscopic support
+        
     float fovy_tan = tanf(fovy * 0.5f * M_PI / 180.0f); // equals 1.0 when FOV is 90
     float fovy_tan_aspect = fovy_tan * aspect; // equals 1.0 because we are being passed an existing mv*p matrix
     float shift = iod / (2.0f*screen);
@@ -108,25 +109,10 @@ void stereoTilt(C3D_Mtx* mtx, float z, float w)
     mtx->r[1].w = shiftW;
 }
 
-void iodSet(s16 iod)
+void gfx_citro3d_set_iod(float z, float w)
 {
-    switch(iod) {
-        case iodCannon :
-            iodZ = 0.0f;
-            iodW = -128.0f;
-            break;
-        case iodFileSelect :
-            iodZ = 96.0f;
-            iodW = 128.0f;
-            break;
-        case iodStarSelect :
-            iodZ = 128.0f;
-            iodW = 76.0f;
-            break;
-        default : // normal iod values
-            iodZ = 8.0f;
-            iodW = 16.0f;
-    }
+    iodZ = z;
+    iodW = w;
 }
 #endif
 
@@ -936,7 +922,8 @@ struct GfxRenderingAPI gfx_citro3d_api = {
     gfx_citro3d_set_fog,
     gfx_citro3d_set_fog_color,
 #ifdef ENABLE_N3DS_3D_MODE
-    gfx_citro3d_is_2d
+    gfx_citro3d_is_2d,
+    gfx_citro3d_set_iod
 #endif
 };
 

@@ -20,11 +20,6 @@
 #include "text_strings.h"
 #include "prevent_bss_reordering.h"
 
-#ifdef ENABLE_N3DS_3D_MODE
-#define GFX_CITRO3D_H
-#include "pc/gfx/gfx_citro3d.h"
-#endif
-
 /**
  * @file star_select.c
  * This file implements how the star select screen (act selector) function.
@@ -383,7 +378,7 @@ Gfx *geo_act_selector_strings(s16 callContext, UNUSED struct GraphNode *node) {
 #endif
     if (callContext == GEO_CONTEXT_RENDER) {
 #ifdef ENABLE_N3DS_3D_MODE
-        iodSet(iodStarSelect);
+        gDPSetIod(gDisplayListHead++, iodStarSelect);
         gDPForceFlush(gDisplayListHead++);
         gDPSet2d(gDisplayListHead++, 1);
 #endif

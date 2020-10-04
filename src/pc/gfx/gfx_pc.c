@@ -162,6 +162,29 @@ static void gfx_set_is_2d(bool is_2d)
 {
     gfx_rapi->set_is_2d(is_2d);
 }
+
+static void gfx_set_iod(unsigned int iod)
+{
+    float z, w;
+    switch(iod) {
+        case iodCannon :
+            z = 0.0f;
+            w = -128.0f;
+            break;
+        case iodFileSelect :
+            z = 96.0f;
+            w = 128.0f;
+            break;
+        case iodStarSelect :
+            z = 128.0f;
+            w = 76.0f;
+            break;
+        default : // normal iod values
+            z = 8.0f;
+            w = 16.0f;
+    }
+    gfx_rapi->set_iod(z, w);
+}
 #endif
 
 static void gfx_flush(void) {
@@ -1570,6 +1593,10 @@ static void gfx_run_dl(Gfx* cmd) {
                 break;
             case G_SPECIAL_2:
                 gfx_flush();
+                break;
+                
+            case G_SPECIAL_4:
+                gfx_set_iod(cmd->words.w1);
                 break;
 #endif
         }

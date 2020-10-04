@@ -29,11 +29,6 @@
 #include "course_table.h"
 #include "thread6.h"
 
-#ifdef ENABLE_N3DS_3D_MODE
-#define GFX_CITRO3D_H
-#include "pc/gfx/gfx_citro3d.h"
-#endif
-
 #define PLAY_MODE_NORMAL 0
 #define PLAY_MODE_PAUSED 2
 #define PLAY_MODE_CHANGE_AREA 3
@@ -1158,6 +1153,9 @@ s32 update_level(void) {
 }
 
 s32 init_level(void) {
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPSetIod(gDisplayListHead++, iodNormal);
+#endif
     s32 val4 = 0;
 
     set_play_mode(PLAY_MODE_NORMAL);
@@ -1232,9 +1230,6 @@ s32 init_level(void) {
 s32 lvl_init_or_update(s16 initOrUpdate, UNUSED s32 unused) {
     s32 result = 0;
 
-#ifdef ENABLE_N3DS_3D_MODE
-    iodSet(iodNormal);
-#endif
     switch (initOrUpdate) {
         case 0:
             result = init_level();

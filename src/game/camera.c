@@ -29,11 +29,6 @@
 #include "engine/graph_node.h"
 #include "level_table.h"
 
-#ifdef ENABLE_N3DS_3D_MODE
-#define GFX_CITRO3D_H
-#include "pc/gfx/gfx_citro3d.h"
-#endif
-
 #define CBUTTON_MASK (U_CBUTTONS | D_CBUTTONS | L_CBUTTONS | R_CBUTTONS)
 
 /**
@@ -2790,10 +2785,10 @@ void mode_cannon_camera(struct Camera *c) {
     gCameraMovementFlags &= ~CAM_MOVING_INTO_MODE;
     c->nextYaw = update_in_cannon(c, c->focus, c->pos);
     if (gPlayer1Controller->buttonPressed & A_BUTTON) {
-        set_camera_mode(c, CAMERA_MODE_BEHIND_MARIO, 1);
 #ifdef ENABLE_N3DS_3D_MODE
-        iodSet(iodNormal);
+        gDPSetIod(gDisplayListHead++, iodNormal);
 #endif
+        set_camera_mode(c, CAMERA_MODE_BEHIND_MARIO, 1);
         sPanDistance = 0.f;
         sCannonYOffset = 0.f;
         sStatusFlags &= ~CAM_FLAG_BLOCK_SMOOTH_MOVEMENT;
