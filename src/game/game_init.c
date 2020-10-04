@@ -154,10 +154,17 @@ void clear_frame_buffer(s32 color) {
     gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
 
     gDPSetFillColor(gDisplayListHead++, color);
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 1);
+#endif
     gDPFillRectangle(gDisplayListHead++,
                      GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(0), BORDER_HEIGHT,
                      GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0) - 1, SCREEN_HEIGHT - BORDER_HEIGHT - 1);
-
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 0);
+#endif
     gDPPipeSync(gDisplayListHead++);
 
     gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
@@ -181,8 +188,15 @@ void clear_viewport(Vp *viewport, s32 color) {
     gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
 
     gDPSetFillColor(gDisplayListHead++, color);
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 1);
+#endif
     gDPFillRectangle(gDisplayListHead++, vpUlx, vpUly, vpLrx, vpLry);
-
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 0);
+#endif
     gDPPipeSync(gDisplayListHead++);
 
     gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);

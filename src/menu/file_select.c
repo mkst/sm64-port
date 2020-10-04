@@ -27,6 +27,11 @@
 #define LANGUAGE_FUNCTION sLanguageMode
 #endif
 
+#ifdef ENABLE_N3DS_3D_MODE
+#define GFX_CITRO3D_H
+#include "pc/gfx/gfx_citro3d.h"
+#endif
+
 /**
  * @file file_select.c
  * This file implements how the file select and it's menus render and function.
@@ -2772,6 +2777,7 @@ static void print_file_select_strings(void) {
 Gfx *geo_file_select_strings_and_menu_cursor(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx) {
     if (callContext == GEO_CONTEXT_RENDER) {
 #ifdef ENABLE_N3DS_3D_MODE
+        iodSet(iodFileSelect);
         gDPForceFlush(gDisplayListHead++);
         gDPSet2d(gDisplayListHead++, 1);
 #endif

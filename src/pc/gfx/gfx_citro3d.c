@@ -76,10 +76,58 @@ static bool scissor;
 static C3D_Mtx modelView, projection;
 
 #ifdef ENABLE_N3DS_3D_MODE
+#define GFX_CITRO3D_H
+#include "gfx_citro3d.h"
 static int sOrigBufIdx;
-static float iod; // determined by 3D slider position
-static const float focalLen = 0.75f;
-static const float fov = 54.0f*M_TAU/360.0f;
+float iodZ = 8.0f;
+float iodW = 16.0f;
+
+void stereoTilt(C3D_Mtx* mtx, float z, float w)
+{
+
+    /** ********************** Default L/R stereo perspective function with x/y tilt removed **********************
+    float fovy_tan = tanf(fovy * 0.5f * M_PI / 180.0f); // equals 1.0 when FOV is 90
+    float fovy_tan_aspect = fovy_tan * aspect; // equals 1.0 because we are being passed an existing mv*p matrix
+    float shift = iod / (2.0f*screen);
+
+    Mtx_Zeros(mtx); // most values revert to identity matrix anyway, including several that are necessary
+
+    mtx->r[0].x = 1.0f / fovy_tan_aspect; // equals 1.0
+    mtx->r[1].y = 1.0f / fovy_tan; // equals 1.0
+    mtx->r[1].z = -mtx->r[3].z * shift / fovx_tan_invaspect; // equivalent in value to r[1].w at focallen = 1.0
+    mtx->r[1].w = iod / 2.0f; // equivalent in value to r[1].z at focallen = 1.0
+    mtx->r[2].z = -mtx->r[3].z * near / (near - far); // kills zbuffer
+    mtx->r[2].w = near * far / (near - far); // kills clipping plane
+    mtx->r[3].z = isLeftHanded ? 1.0f : -1.0f; // kills fog (viewplane data?)
+    ************************************************************************************************************ */
+
+    float shiftZ = (z == 0) ? 0 : gSliderLevel / z; // view frustum separation? (+ = deep)
+    float shiftW = (w == 0) ? 0 : gSliderLevel / w; // camera-to-viewport separation? (+ = pop)
+
+    mtx->r[1].z = shiftZ;
+    mtx->r[1].w = shiftW;
+}
+
+void iodSet(s16 iod)
+{
+    switch(iod) {
+        case iodCannon :
+            iodZ = 0.0f;
+            iodW = -128.0f;
+            break;
+        case iodFileSelect :
+            iodZ = 96.0f;
+            iodW = 128.0f;
+            break;
+        case iodStarSelect :
+            iodZ = 128.0f;
+            iodW = 76.0f;
+            break;
+        default : // normal iod values
+            iodZ = 8.0f;
+            iodW = 16.0f;
+    }
+}
 #endif
 
 static bool gfx_citro3d_z_is_from_0_to_1(void)
@@ -710,15 +758,14 @@ void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
 static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
 {
 #ifdef ENABLE_N3DS_3D_MODE
-    Mtx_Identity(&projection);
+    Mtx_Identity(&projection); // this doesn't seem needed
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
     {
         sOrigBufIdx = sBufIdx;
-        iod = gSliderLevel / 10.0f;
 
         if (!sIs2D)
         {
-            projection.r[1].z = -iod * (1.0f + iod); // left/right
+            stereoTilt(&projection, -iodZ, -iodW);
         }
     }
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
@@ -734,7 +781,7 @@ static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_le
 
         if (!sIs2D)
         {
-            projection.r[1].z = iod * (1.0f + iod); // left/right
+            stereoTilt(&projection, iodZ, iodW);
             C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
         }
         // draw right screen

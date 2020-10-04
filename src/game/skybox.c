@@ -260,7 +260,6 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex) {
     s16 y = SKYBOX_HEIGHT - tileIndex / SKYBOX_COLS * SKYBOX_TILE_HEIGHT;
 
     if (verts != NULL) {
-
         make_vertex(verts, 0, x, y, -1, 0, 0, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
                     sSkyboxColors[colorIndex][2], 255);
         make_vertex(verts, 1, x, y - SKYBOX_TILE_HEIGHT, -1, 0, 31 << 5, sSkyboxColors[colorIndex][0], sSkyboxColors[colorIndex][1],
@@ -282,12 +281,12 @@ Vtx *make_skybox_rect(s32 tileIndex, s8 colorIndex, s8 player) {
         s16 tileColTotal = sSkyBoxInfo[player].tileCol + sSkyBoxInfo[player].tileColCur;
         s16 tileRowTotal = sSkyBoxInfo[player].tileRow + sSkyBoxInfo[player].tileRowCur;
         if (sSkyBoxInfo[player].tileCol == 7 && sSkyBoxInfo[player].tileColCur == 0) // check wrap around
-            x = 0 - (SKYBOX_TILE_WIDTH); // negative value required to properly wrap
+            x = 0 - SKYBOX_TILE_WIDTH; // negative value required to properly wrap
         else if (sSkyBoxInfo[player].tileCol == 7)
             x = SKYBOX_TILE_WIDTH * (sSkyBoxInfo[player].tileColCur - 1);
         else
             x = tileColTotal * SKYBOX_TILE_WIDTH;
-        y = (tileRowTotal > 7) ? SKYBOX_TILE_HEIGHT : (SKYBOX_HEIGHT - tileRowTotal * SKYBOX_TILE_HEIGHT); // check for bottom
+        y = (tileRowTotal > 7) ? SKYBOX_TILE_HEIGHT : SKYBOX_HEIGHT - tileRowTotal * SKYBOX_TILE_HEIGHT; // check for bottom
         z = -3; // skybox depth, disappears when less than -3
     }
     else {
@@ -429,7 +428,7 @@ Gfx *create_skybox_facing_camera(s8 player, s8 background, f32 fov,
     f32 cameraFaceZ = focZ - posZ;
     s8 colorIndex = 1;
 #ifdef ENABLE_N3DS_3D_MODE
-    is3D = ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f) ? true : false;
+    is3D = ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f);
 #endif
 
     // If the first star is collected in JRB, make the sky darker and slightly green
