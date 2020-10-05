@@ -36,12 +36,20 @@ const Gfx *introBackgroundDlRows[] = { title_screen_bg_dl_0A000130, title_screen
 
 // intro screen background texture X offsets
 float introBackgroundOffsetX[] = {
+#ifdef TARGET_N3DS
+    -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, -120.0, -120.0, -120.0, 360.0, 360.0, 360.0,
+#else
     0.0, 80.0, 160.0, 240.0, 0.0, 80.0, 160.0, 240.0, 0.0, 80.0, 160.0, 240.0,
+#endif
 };
 
 // intro screen background texture Y offsets
 float introBackgroundOffsetY[] = {
+#ifdef TARGET_N3DS
+    160.0, 160.0, 160.0, 160.0, 160.0, 80.0, 80.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0, 0.0, 160.0, 80.0, 0.0, 160.0, 80.0, 0.0, 
+#else
     160.0, 160.0, 160.0, 160.0, 80.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0,
+#endif
 };
 
 // table that points to either the "Super Mario 64" or "Game Over" tables
@@ -52,6 +60,11 @@ s8 introBackgroundIndexTable[] = {
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
+#ifdef TARGET_N3DS
+    INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
+    INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
+    INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
+#endif
 };
 
 // only one table of indexes listed
@@ -62,11 +75,21 @@ s8 gameOverBackgroundTable[] = {
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
+#ifdef TARGET_N3DS
+    INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
+    INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
+    INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
+#endif
 };
 
 // order of tiles that are flipped from "Game Over" to "Super Mario 64"
+#ifdef TARGET_N3DS
+s8 gameOverBackgroundFlipOrder[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0e,
+                                     0x0d, 0x0c, 0x0b, 0x0a, 0x05, 0x06, 0x07, 0x08 };
+#else
 s8 gameOverBackgroundFlipOrder[] = { 0x00, 0x01, 0x02, 0x03, 0x07, 0x0B,
                                      0x0a, 0x09, 0x08, 0x04, 0x05, 0x06 };
+#endif
 
 Gfx *geo_title_screen(s32 sp50, struct GraphNode *sp54, UNUSED void *context) {
     struct GraphNode *graphNode; // sp4c
@@ -197,7 +220,11 @@ Gfx *geo_intro_backdrop(s32 sp48, struct GraphNode *sp4c, UNUSED void *context) 
         graphNode->node.flags = (graphNode->node.flags & 0xFF) | 0x100;
         gSPDisplayList(displayListIter++, &dl_proj_mtx_fullscreen);
         gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000100);
+#ifdef TARGET_N3DS
+        for (i = 0; i < 21; ++i) {
+#else
         for (i = 0; i < 12; ++i) {
+#endif
             gSPDisplayList(displayListIter++, intro_backdrop_one_image(i, backgroundTable));
         }
         gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000190);
@@ -231,13 +258,35 @@ Gfx *geo_game_over_tile(s32 sp40, struct GraphNode *sp44, UNUSED void *context) 
             }
         } else {
             // transition tile from "Game Over" to "Super Mario 64"
+#ifdef TARGET_N3DS
+            if (gGameOverTableIndex != 14 && !(gGameOverFrameCounter & 0x1)) {
+#else
             if (gGameOverTableIndex != 11 && !(gGameOverFrameCounter & 0x1)) {
+#endif
                 gGameOverTableIndex++;
+#ifdef TARGET_N3DS
+                int clipTile = 0;
+                switch (gameOverBackgroundFlipOrder[gGameOverTableIndex]) // tiles clipped on the edge in 3D mode won't affect flip pattern
+                {
+                    case 0 : clipTile = 15; break;
+                    case 4 : clipTile = 18; break;
+                    case 5 : clipTile = 16; break;
+                    case 9 : clipTile = 19; break;
+                    case 10 : clipTile = 17; break;
+                    case 14 : clipTile = 20; break;
+                }
+                if (clipTile != 0)                
+                    gameOverBackgroundTable[clipTile] = INTRO_BACKGROUND_SUPER_MARIO;
+#endif
                 gameOverBackgroundTable[gameOverBackgroundFlipOrder[gGameOverTableIndex]] =
                     INTRO_BACKGROUND_SUPER_MARIO;
             }
         }
+#ifdef TARGET_N3DS
+        if (gGameOverTableIndex != 14) {
+#else
         if (gGameOverTableIndex != 11) {
+#endif
             gGameOverFrameCounter++;
         }
         graphNode->flags = (graphNode->flags & 0xFF) | 0x100;
