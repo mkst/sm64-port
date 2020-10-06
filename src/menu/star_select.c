@@ -378,9 +378,9 @@ Gfx *geo_act_selector_strings(s16 callContext, UNUSED struct GraphNode *node) {
 #endif
     if (callContext == GEO_CONTEXT_RENDER) {
 #ifdef ENABLE_N3DS_3D_MODE
-        gDPSetIod(gDisplayListHead++, iodStarSelect);
         gDPForceFlush(gDisplayListHead++);
         gDPSet2d(gDisplayListHead++, 1);
+        gDPSetIod(gDisplayListHead++, iodStarSelect);
 #endif
         print_act_selector_strings();
 #ifdef ENABLE_N3DS_3D_MODE

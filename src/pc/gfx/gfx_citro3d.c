@@ -77,6 +77,7 @@ static C3D_Mtx modelView, projection;
 
 #ifdef ENABLE_N3DS_3D_MODE
 static int sOrigBufIdx;
+static int s2DMode;
 float iodZ = 8.0f;
 float iodW = 16.0f;
 
@@ -101,12 +102,29 @@ void stereoTilt(C3D_Mtx* mtx, float z, float w)
     mtx->r[2].w = near * far / (near - far); // kills clipping plane
     mtx->r[3].z = isLeftHanded ? 1.0f : -1.0f; // kills fog (viewplane data?)
     ************************************************************************************************************ */
+    
+    switch (s2DMode) {
+        case 0 : // regular 3D geometry
+            mtx->r[1].z = (z == 0) ? 0 : gSliderLevel / z; // view frustum separation? (+ = deep)
+            mtx->r[1].w = (w == 0) ? 0 : gSliderLevel / w; // camera-to-viewport separation? (+ = pop)
+            break;
+        case 1 : // pure 2D
+            break;
+        case 2 : // goddard hand and press start text
+            mtx->r[1].z = (z < 0) ? gSliderLevel / -32.0f : gSliderLevel / 32.0f;
+            mtx->r[1].w = (w < 0) ? gSliderLevel / -32.0f : gSliderLevel / 32.0f;
+            break;
+        case 3 : // credits
+            mtx->r[1].z = (z < 0) ? gSliderLevel / -64.0f : gSliderLevel / 64.0f;
+            mtx->r[1].w = (w < 0) ? gSliderLevel / -64.0f : gSliderLevel / 64.0f;
+            break;
+    }
 
-    float shiftZ = (z == 0) ? 0 : gSliderLevel / z; // view frustum separation? (+ = deep)
-    float shiftW = (w == 0) ? 0 : gSliderLevel / w; // camera-to-viewport separation? (+ = pop)
+}
 
-    mtx->r[1].z = shiftZ;
-    mtx->r[1].w = shiftW;
+static void gfx_citro3d_set_2d(int mode_2d)
+{
+    s2DMode = mode_2d;
 }
 
 void gfx_citro3d_set_iod(float z, float w)
@@ -724,14 +742,6 @@ static void gfx_citro3d_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size
     sBufIdx += buf_vbo_num_tris * 3;
 }
 
-#ifdef ENABLE_N3DS_3D_MODE
-static bool sIs2D;
-static void gfx_citro3d_is_2d(bool is_2d)
-{
-    sIs2D = is_2d;
-}
-#endif
-
 void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
 {
     target->used = true;
@@ -744,15 +754,11 @@ void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
 static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
 {
 #ifdef ENABLE_N3DS_3D_MODE
-    Mtx_Identity(&projection); // this doesn't seem needed
+    Mtx_Identity(&projection);
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
     {
         sOrigBufIdx = sBufIdx;
-
-        if (!sIs2D)
-        {
-            stereoTilt(&projection, -iodZ, -iodW);
-        }
+        stereoTilt(&projection, -iodZ, -iodW);
     }
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
 #endif
@@ -764,12 +770,9 @@ static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_le
     {
         // restore buffer index
         sBufIdx = sOrigBufIdx;
+        stereoTilt(&projection, iodZ, iodW);
+        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
 
-        if (!sIs2D)
-        {
-            stereoTilt(&projection, iodZ, iodW);
-            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
-        }
         // draw right screen
         gfx_citro3d_frame_draw_on(gTargetRight);
         gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
@@ -922,7 +925,7 @@ struct GfxRenderingAPI gfx_citro3d_api = {
     gfx_citro3d_set_fog,
     gfx_citro3d_set_fog_color,
 #ifdef ENABLE_N3DS_3D_MODE
-    gfx_citro3d_is_2d,
+    gfx_citro3d_set_2d,
     gfx_citro3d_set_iod
 #endif
 };

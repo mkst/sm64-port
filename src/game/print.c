@@ -26,6 +26,11 @@ struct TextLabel {
 struct TextLabel *sTextLabels[52];
 s16 sTextLabelsCount = 0;
 
+#ifdef ENABLE_N3DS_3D_MODE
+struct TextLabel *sPressStart[52]; // separates "press start" text from render_text_labels general
+s16 sPressStartCount = 0;
+#endif
+
 /**
  * Returns n to the exponent power, only for non-negative powers.
  */
@@ -282,6 +287,34 @@ void print_text_centered(s32 x, s32 y, const char *str) {
     sTextLabelsCount++;
 }
 
+#ifdef ENABLE_N3DS_3D_MODE
+/** Separate function for "PRESS START" text, basically a copy of print_text_centered **/
+void print_press_start(s32 x, s32 y, const char *str) {
+    char c = 0;
+    s32 length = 0;
+    s32 srcIndex = 0;
+
+    if ((sPressStart[sPressStartCount] = mem_pool_alloc(gEffectsMemoryPool,
+                                                        sizeof(struct TextLabel))) == NULL) {
+        return;
+    }
+
+    c = str[srcIndex];
+
+    while (c != 0) {
+        sPressStart[sPressStartCount]->buffer[length] = c;
+        length++;
+        srcIndex++;
+        c = str[srcIndex];
+    }
+
+    sPressStart[sPressStartCount]->length = length;
+    sPressStart[sPressStartCount]->x = x - length * 12 / 2;
+    sPressStart[sPressStartCount]->y = y;
+    sPressStartCount++;
+}
+#endif
+
 /**
  * Converts a char into the proper colorful glyph for the char.
  */
@@ -460,3 +493,46 @@ void render_text_labels(void) {
 
     sTextLabelsCount = 0;
 }
+
+#ifdef ENABLE_N3DS_3D_MODE
+/** Renders "press start", basically a copy of render_text_labels **/
+void render_press_start(void) {
+
+    if (sPressStartCount == 0) {
+        return;
+    }
+    
+    s32 i;
+    s32 j;
+    s8 glyphIndex;
+    Mtx *mtx;
+
+    mtx = alloc_display_list(sizeof(*mtx));
+
+    if (mtx == NULL) {
+        sPressStartCount = 0;
+        return;
+    }
+
+    guOrtho(mtx, 0.0f, SCREEN_WIDTH, 0.0f, SCREEN_HEIGHT, -10.0f, 10.0f, 1.0f);
+    gSPPerspNormalize((Gfx *) (gDisplayListHead++), 0xFFFF);
+    gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(mtx), G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+    gSPDisplayList(gDisplayListHead++, dl_hud_img_begin);
+
+    for (i = 0; i < sPressStartCount; i++) {
+        for (j = 0; j < sPressStart[i]->length; j++) {
+            glyphIndex = char_to_glyph_index(sPressStart[i]->buffer[j]);
+
+            if (glyphIndex != GLYPH_SPACE) {
+                add_glyph_texture(glyphIndex);
+                render_textrect(sPressStart[i]->x, sPressStart[i]->y, j);
+            }
+        }
+
+        mem_pool_free(gEffectsMemoryPool, sPressStart[i]);
+    }
+    
+    gSPDisplayList(gDisplayListHead++, dl_hud_img_end);
+    sPressStartCount = 0;
+}
+#endif

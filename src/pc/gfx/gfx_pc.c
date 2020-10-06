@@ -158,18 +158,22 @@ static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
 
 #ifdef ENABLE_N3DS_3D_MODE
-static void gfx_set_is_2d(bool is_2d)
+static void gfx_set_2d(int mode_2d)
 {
-    gfx_rapi->set_is_2d(is_2d);
+    gfx_rapi->set_set_2d(mode_2d);
 }
 
 static void gfx_set_iod(unsigned int iod)
 {
     float z, w;
     switch(iod) {
-        case iodCannon :
-            z = 0.0f;
-            w = -128.0f;
+        case iodNormal :
+            z = 8.0f;
+            w = 16.0f;
+            break;
+        case iodGoddard :
+            z = 0.5f;
+            w = 0.5f;
             break;
         case iodFileSelect :
             z = 96.0f;
@@ -179,9 +183,10 @@ static void gfx_set_iod(unsigned int iod)
             z = 128.0f;
             w = 76.0f;
             break;
-        default : // normal iod values
-            z = 8.0f;
-            w = 16.0f;
+        case iodCannon :
+            z = 0.0f;
+            w = -128.0f;
+            break;
     }
     gfx_rapi->set_iod(z, w);
 }
@@ -1589,7 +1594,7 @@ static void gfx_run_dl(Gfx* cmd) {
                 break;
 #ifdef ENABLE_N3DS_3D_MODE
             case G_SPECIAL_1:
-                gfx_set_is_2d(cmd->words.w1 == 1);
+                gfx_set_2d(cmd->words.w1);
                 break;
             case G_SPECIAL_2:
                 gfx_flush();

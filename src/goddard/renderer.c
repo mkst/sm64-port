@@ -2325,6 +2325,9 @@ void start_view_dl(struct ObjView *view) {
 #ifdef TARGET_N64
     gDPSetScissor(next_gfx(), G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
 #endif
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPSetIod(next_gfx(), iodGoddard);
+#endif
     gSPClearGeometryMode(next_gfx(), 0xFFFFFFFF);
     gSPSetGeometryMode(next_gfx(), G_LIGHTING | G_CULL_BACK | G_SHADING_SMOOTH | G_SHADE);
     if (view->flags & VIEW_ALLOC_ZBUF) {
@@ -3439,11 +3442,11 @@ void gd_put_sprite(u16 *sprite, s32 x, s32 y, s32 wx, s32 wy) {
     s32 c; // 5c
     s32 r; // 58
 
-    gSPDisplayList(next_gfx(), osVirtualToPhysical(gd_dl_sprite_start_tex_block));
 #ifdef ENABLE_N3DS_3D_MODE
     gDPForceFlush(next_gfx());
-    gDPSet2d(next_gfx(), 1);
+    gDPSet2d(next_gfx(), 2);
 #endif
+    gSPDisplayList(next_gfx(), osVirtualToPhysical(gd_dl_sprite_start_tex_block));
     for (r = 0; r < wy; r += 32) {
         for (c = 0; c < wx; c += 32) {
              gDPLoadTextureBlock(next_gfx(), (r * 32) + sprite + c, G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0,

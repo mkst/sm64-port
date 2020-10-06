@@ -117,7 +117,9 @@
 #define G_SPECIAL_1		0xd5
 #define G_SPECIAL_2		0xd4
 #define G_SPECIAL_3		0xd3
+#ifdef ENABLE_N3DS_3D_MODE
 #define G_SPECIAL_4		0xd2
+#endif
 
 #define G_VTX			0x01
 #define G_MODIFYVTX		0x02
@@ -4816,15 +4818,16 @@ typedef union {
 	Gfx *_g = (Gfx *)(pkt);	\
 									\
 	_g->words.w0 = _SHIFTL(G_SPECIAL_4, 24, 8); \
-    _g->words.w1 = (unsigned int)(iod); \
+	_g->words.w1 = (unsigned int)(iod); \
 }
 /*
  * G_SPECIAL_4: IOD parameter flags
  */
-#define iodCannon       0x00
-#define iodFileSelect   0x01
-#define iodStarSelect   0x02
-#define iodNormal       0x03
+#define iodNormal       0x00
+#define iodGoddard      0x01
+#define iodFileSelect   0x02
+#define iodStarSelect   0x03
+#define iodCannon       0x04
 
 #endif
 

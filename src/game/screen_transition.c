@@ -182,6 +182,10 @@ s32 render_textured_transition(s8 fadeTimer, s8 transTime, struct WarpTransition
     s16 texTransRadius = calc_tex_transition_radius(fadeTimer, transTime, transData);
     Vtx *verts = alloc_display_list(8 * sizeof(*verts));
 
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 1);
+#endif
     if (verts != NULL) {
         load_tex_transition_vertex(verts, fadeTimer, transData, centerTransX, centerTransY, texTransRadius, transTexType);
         gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen)
@@ -211,6 +215,10 @@ s32 render_textured_transition(s8 fadeTimer, s8 transTime, struct WarpTransition
         sTransitionTextureFadeCount[fadeTimer] += transData->texTimer;
     } else {
     }
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 0);
+#endif
     return set_and_reset_transition_fade_timer(fadeTimer, transTime);
 }
 

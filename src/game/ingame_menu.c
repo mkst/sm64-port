@@ -1901,15 +1901,7 @@ void print_credits_str_ascii(s16 x, s16 y, const char *str) {
 
     creditStr[pos] = GLOBAR_CHAR_TERMINATOR;
 
-#ifdef ENABLE_N3DS_3D_MODE
-    gDPForceFlush(gDisplayListHead++);
-    gDPSet2d(gDisplayListHead++, 1);
-#endif
     print_credits_string(x, y, creditStr);
-#ifdef ENABLE_N3DS_3D_MODE
-    gDPForceFlush(gDisplayListHead++);
-    gDPSet2d(gDisplayListHead++, 0);
-#endif
 }
 
 void set_cutscene_message(s16 xOffset, s16 yOffset, s16 msgIndex, s16 msgDuration) {
@@ -1936,11 +1928,6 @@ void do_cutscene_handler(void) {
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gCutsceneMsgFade);
-
-#ifdef ENABLE_N3DS_3D_MODE
-    gDPForceFlush(gDisplayListHead++);
-    gDPSet2d(gDisplayListHead++, 1);
-#endif
 
 #ifdef VERSION_EU
     switch (eu_get_language()) {
@@ -1969,11 +1956,6 @@ void do_cutscene_handler(void) {
 #endif
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
-
-#ifdef ENABLE_N3DS_3D_MODE
-    gDPForceFlush(gDisplayListHead++);
-    gDPSet2d(gDisplayListHead++, 0);
-#endif
 
     // if the timing variable is less than 5, increment
     // the fade until we are at full opacity.

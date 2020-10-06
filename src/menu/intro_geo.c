@@ -37,7 +37,7 @@ const Gfx *introBackgroundDlRows[] = { title_screen_bg_dl_0A000130, title_screen
 // intro screen background texture X offsets
 float introBackgroundOffsetX[] = {
 #ifdef TARGET_N3DS
-    -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, -120.0, -120.0, -120.0, 360.0, 360.0, 360.0,
+    -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, -40.0, 40.0, 120.0, 200.0, 280.0, 
 #else
     0.0, 80.0, 160.0, 240.0, 0.0, 80.0, 160.0, 240.0, 0.0, 80.0, 160.0, 240.0,
 #endif
@@ -46,7 +46,7 @@ float introBackgroundOffsetX[] = {
 // intro screen background texture Y offsets
 float introBackgroundOffsetY[] = {
 #ifdef TARGET_N3DS
-    160.0, 160.0, 160.0, 160.0, 160.0, 80.0, 80.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0, 0.0, 160.0, 80.0, 0.0, 160.0, 80.0, 0.0, 
+    160.0, 160.0, 160.0, 160.0, 160.0, 80.0, 80.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 #else
     160.0, 160.0, 160.0, 160.0, 80.0, 80.0, 80.0, 80.0, 0.0, 0.0, 0.0, 0.0,
 #endif
@@ -62,8 +62,6 @@ s8 introBackgroundIndexTable[] = {
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
 #ifdef TARGET_N3DS
     INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
-    INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
-    INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO, INTRO_BACKGROUND_SUPER_MARIO,
 #endif
 };
 
@@ -76,8 +74,6 @@ s8 gameOverBackgroundTable[] = {
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
 #ifdef TARGET_N3DS
-    INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
-    INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
     INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER, INTRO_BACKGROUND_GAME_OVER,
 #endif
 };
@@ -221,7 +217,7 @@ Gfx *geo_intro_backdrop(s32 sp48, struct GraphNode *sp4c, UNUSED void *context) 
         gSPDisplayList(displayListIter++, &dl_proj_mtx_fullscreen);
         gSPDisplayList(displayListIter++, &title_screen_bg_dl_0A000100);
 #ifdef TARGET_N3DS
-        for (i = 0; i < 21; ++i) {
+        for (i = 0; i < 15; ++i) {
 #else
         for (i = 0; i < 12; ++i) {
 #endif
@@ -264,20 +260,6 @@ Gfx *geo_game_over_tile(s32 sp40, struct GraphNode *sp44, UNUSED void *context) 
             if (gGameOverTableIndex != 11 && !(gGameOverFrameCounter & 0x1)) {
 #endif
                 gGameOverTableIndex++;
-#ifdef TARGET_N3DS
-                int clipTile = 0;
-                switch (gameOverBackgroundFlipOrder[gGameOverTableIndex]) // tiles clipped on the edge in 3D mode won't affect flip pattern
-                {
-                    case 0 : clipTile = 15; break;
-                    case 4 : clipTile = 18; break;
-                    case 5 : clipTile = 16; break;
-                    case 9 : clipTile = 19; break;
-                    case 10 : clipTile = 17; break;
-                    case 14 : clipTile = 20; break;
-                }
-                if (clipTile != 0)                
-                    gameOverBackgroundTable[clipTile] = INTRO_BACKGROUND_SUPER_MARIO;
-#endif
                 gameOverBackgroundTable[gameOverBackgroundFlipOrder[gGameOverTableIndex]] =
                     INTRO_BACKGROUND_SUPER_MARIO;
             }
