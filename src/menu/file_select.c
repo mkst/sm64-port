@@ -2601,6 +2601,10 @@ void print_score_file_star_score(s8 fileIndex, s16 courseIndex, s16 x, s16 y) {
  * Prints save file score strings that shows when a save file is chosen inside the score menu.
  */
  void print_save_file_scores(s8 fileIndex) {
+#ifdef ENABLE_N3DS_3D_MODE
+    gDPForceFlush(gDisplayListHead++);
+    gDPSet2d(gDisplayListHead++, 4); // vetoed
+#endif 
 #ifndef VERSION_EU
     unsigned char textMario[] = { TEXT_MARIO };
 #endif

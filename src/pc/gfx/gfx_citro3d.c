@@ -102,24 +102,30 @@ void stereoTilt(C3D_Mtx* mtx, float z, float w)
     mtx->r[2].w = near * far / (near - far); // kills clipping plane
     mtx->r[3].z = isLeftHanded ? 1.0f : -1.0f; // kills fog (viewplane data?)
     ************************************************************************************************************ */
-    
+
+    Mtx_Identity(mtx);
+
     switch (s2DMode) {
-        case 0 : // regular 3D geometry
-            mtx->r[1].z = (z == 0) ? 0 : gSliderLevel / z; // view frustum separation? (+ = deep)
-            mtx->r[1].w = (w == 0) ? 0 : gSliderLevel / w; // camera-to-viewport separation? (+ = pop)
+        case 0 : // 3D
             break;
         case 1 : // pure 2D
-            break;
+            C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, mtx);
+            return;
         case 2 : // goddard hand and press start text
-            mtx->r[1].z = (z < 0) ? gSliderLevel / -32.0f : gSliderLevel / 32.0f;
-            mtx->r[1].w = (w < 0) ? gSliderLevel / -32.0f : gSliderLevel / 32.0f;
+            z = (z < 0) ? -32.0f : 32.0f;
+            w = (w < 0) ? -32.0f : 32.0f;
             break;
         case 3 : // credits
-            mtx->r[1].z = (z < 0) ? gSliderLevel / -64.0f : gSliderLevel / 64.0f;
-            mtx->r[1].w = (w < 0) ? gSliderLevel / -64.0f : gSliderLevel / 64.0f;
+            z = (z < 0) ? -64.0f : 64.0f;
+            w = (w < 0) ? -64.0f : 64.0f;
             break;
+        case 4 : // the goddamn score menu
+            return;
     }
 
+    mtx->r[1].z = (z == 0) ? 0 : gSliderLevel / z; // view frustum separation? (+ = deep)
+    mtx->r[1].w = (w == 0) ? 0 : gSliderLevel / w; // camera-to-viewport separation? (+ = pop)
+    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, mtx);
 }
 
 static void gfx_citro3d_set_2d(int mode_2d)
@@ -754,30 +760,24 @@ void gfx_citro3d_frame_draw_on(C3D_RenderTarget* target)
 static void gfx_citro3d_draw_triangles_helper(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris)
 {
 #ifdef ENABLE_N3DS_3D_MODE
-    Mtx_Identity(&projection);
     if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
     {
+        // left screen
         sOrigBufIdx = sBufIdx;
         stereoTilt(&projection, -iodZ, -iodW);
-    }
-    C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
-#endif
-    // left screen
-    gfx_citro3d_frame_draw_on(gTarget);
-    gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
-#ifdef ENABLE_N3DS_3D_MODE
-    if ((gGfx3DSMode == GFX_3DS_MODE_NORMAL || gGfx3DSMode == GFX_3DS_MODE_AA_22) && gSliderLevel > 0.0f)
-    {
-        // restore buffer index
+        gfx_citro3d_frame_draw_on(gTarget);
+        gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
+        
+        // right screen
         sBufIdx = sOrigBufIdx;
         stereoTilt(&projection, iodZ, iodW);
-        C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
-
-        // draw right screen
         gfx_citro3d_frame_draw_on(gTargetRight);
         gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
+        return;
     }
 #endif
+    gfx_citro3d_frame_draw_on(gTarget);
+    gfx_citro3d_draw_triangles(buf_vbo, buf_vbo_len, buf_vbo_num_tris);
 }
 
 static void gfx_citro3d_init(void)

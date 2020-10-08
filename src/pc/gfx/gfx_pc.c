@@ -160,7 +160,7 @@ static struct GfxRenderingAPI *gfx_rapi;
 #ifdef ENABLE_N3DS_3D_MODE
 static void gfx_set_2d(int mode_2d)
 {
-    gfx_rapi->set_set_2d(mode_2d);
+    gfx_rapi->set_2d(mode_2d);
 }
 
 static void gfx_set_iod(unsigned int iod)
