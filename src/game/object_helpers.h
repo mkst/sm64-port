@@ -97,6 +97,12 @@ struct Object *spawn_object_abs_with_rot(struct Object *parent, s16 uselessArg, 
                                          s16 x, s16 y, s16 z, s16 rx, s16 ry, s16 rz);
 struct Object *spawn_object_rel_with_rot(struct Object *parent, u32 model, const BehaviorScript *behavior,
                                          s16 xOff, s16 yOff, s16 zOff, s16 rx, s16 ry, UNUSED s16 rz);
+#ifdef TARGET_N3DS
+struct Object *spawn_object_rel_with_rot_x_scaling(struct Object *parent, u32 model, const BehaviorScript *behavior,
+                                         s16 xOff, s16 yOff, s16 zOff, s16 rx, s16 ry, UNUSED s16 rz);
+struct Object *spawn_object_at_origin_x_scaling(struct Object *parent, UNUSED s32 unusedArg, u32 model,
+                                      const BehaviorScript *behavior);
+#endif
 struct Object *spawn_obj_with_transform_flags(struct Object *sp20, s32 model, const BehaviorScript *sp28);
 struct Object *spawn_water_droplet(struct Object *parent, struct WaterDropletParams *params);
 struct Object *spawn_object_at_origin(struct Object *, s32, u32, const BehaviorScript *);

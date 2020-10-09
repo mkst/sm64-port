@@ -27,6 +27,11 @@
 #define LANGUAGE_FUNCTION sLanguageMode
 #endif
 
+#ifdef TARGET_N3DS
+const float scalerNarrow = 0.08888888f;
+const float scalerNorm = 0.11111111f;
+#endif
+
 /**
  * @file file_select.c
  * This file implements how the file select and it's menus render and function.
@@ -312,6 +317,9 @@ static unsigned char xIcon[] = { GLYPH_MULTIPLY, GLYPH_SPACE };
 void beh_yellow_background_menu_init(void) {
     gCurrentObject->oFaceAngleYaw = 0x8000;
     gCurrentObject->oMenuButtonScale = 9.0f;
+#ifdef TARGET_N3DS
+    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+#endif
 }
 
 /**
@@ -320,6 +328,9 @@ void beh_yellow_background_menu_init(void) {
  */
 void beh_yellow_background_menu_loop(void) {
     cur_obj_scale(9.0f);
+#ifdef TARGET_N3DS
+    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+#endif
 }
 
 /**
@@ -350,6 +361,9 @@ static void bhv_menu_button_growing_from_main_menu(struct Object *button) {
     }
     if (button->oMenuButtonTimer < 8) {
         button->oFaceAnglePitch += 0x800;
+#ifdef TARGET_N3DS
+        button->oMenuButtonState = MENU_BUTTON_STATE_GROW_TO_FULL;
+#endif
     }
     if (button->oMenuButtonTimer >= 8 && button->oMenuButtonTimer < 16) {
         button->oFaceAnglePitch -= 0x800;
@@ -377,6 +391,9 @@ static void bhv_menu_button_shrinking_to_main_menu(struct Object *button) {
     }
     if (button->oMenuButtonTimer < 8) {
         button->oFaceAnglePitch -= 0x800;
+#ifdef TARGET_N3DS
+        button->oMenuButtonState = MENU_BUTTON_STATE_SHRINK_TO_DEFAULT;
+#endif
     }
     if (button->oMenuButtonTimer >= 8 && button->oMenuButtonTimer < 16) {
         button->oFaceAnglePitch += 0x800;
@@ -404,6 +421,9 @@ static void bhv_menu_button_growing_from_submenu(struct Object *button) {
     }
     if (button->oMenuButtonTimer < 8) {
         button->oFaceAnglePitch += 0x800;
+#ifdef TARGET_N3DS
+        button->oMenuButtonState = MENU_BUTTON_STATE_GROW_TO_FULL;
+#endif
     }
     if (button->oMenuButtonTimer >= 8 && button->oMenuButtonTimer < 16) {
         button->oFaceAnglePitch -= 0x800;
@@ -429,6 +449,9 @@ static void bhv_menu_button_shrinking_to_submenu(struct Object *button) {
     }
     if (button->oMenuButtonTimer < 8) {
         button->oFaceAnglePitch -= 0x800;
+#ifdef TARGET_N3DS
+        button->oMenuButtonState = MENU_BUTTON_STATE_SHRINK_TO_DEFAULT;
+#endif
     }
     if (button->oMenuButtonTimer >= 8 && button->oMenuButtonTimer < 16) {
         button->oFaceAnglePitch += 0x800;
@@ -479,7 +502,16 @@ static void bhv_menu_button_zoom_in_out(struct Object *button) {
  * Used while selecting a target copy/erase file or yes/no erase confirmation prompt.
  */
 static void bhv_menu_button_zoom_in(struct Object *button) {
+#ifdef TARGET_N3DS
+    if (gCurrentObject->oMenuButtonScale == 0.0f) {
+        button->oMenuButtonScalerNrrw += 0.00176;
+        button->oMenuButtonScalerNorm += 0.00176;
+    }
+    else        
+        button->oMenuButtonScale += 0.0022;
+#else
     button->oMenuButtonScale += 0.0022;
+#endif
     button->oMenuButtonTimer++;
     if (button->oMenuButtonTimer == 10) {
         button->oMenuButtonState = MENU_BUTTON_STATE_DEFAULT;
@@ -493,7 +525,16 @@ static void bhv_menu_button_zoom_in(struct Object *button) {
  * yes/no erase confirmation prompt to undo the zoom in.
  */
 static void bhv_menu_button_zoom_out(struct Object *button) {
+#ifdef TARGET_N3DS
+    if (gCurrentObject->oMenuButtonScale == 0.0f) {
+        button->oMenuButtonScalerNrrw -= 0.00176;
+        button->oMenuButtonScalerNorm -= 0.00176;
+    }
+    else        
+        button->oMenuButtonScale -= 0.0022;
+#else
     button->oMenuButtonScale -= 0.0022;
+#endif
     button->oMenuButtonTimer++;
     if (button->oMenuButtonTimer == 10) {
         button->oMenuButtonState = MENU_BUTTON_STATE_DEFAULT;
@@ -516,6 +557,102 @@ void bhv_menu_button_init(void) {
  * Handles the functions of the button states and
  * object scale for each button.
  */
+#ifdef TARGET_N3DS
+/**
+ * Customized function to scale the y dimension of the menu 
+ * tile/buttons separate from other dimensions. Keeps
+ * original button dimensions while scaling only when they
+ * become menu backgrounds, for a widescreen menu that still
+ * looks like the original.
+ */
+void bhv_menu_button_loop(void) {
+    switch (gCurrentObject->oMenuButtonState) {
+        case MENU_BUTTON_STATE_DEFAULT: // Button state
+            gCurrentObject->oMenuButtonOrigPosZ = gCurrentObject->oPosZ;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+        case MENU_BUTTON_STATE_GROWING: // Switching from button to menu state
+            if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
+                bhv_menu_button_growing_from_main_menu(gCurrentObject);
+            }
+            if (sCurrentMenuLevel == MENU_LAYER_SUBMENU) {
+                bhv_menu_button_growing_from_submenu(gCurrentObject); // Only used for score files
+            }
+            sTextBaseAlpha = 0;
+            sCursorClickingTimer = 4;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+        case MENU_BUTTON_STATE_FULLSCREEN: // Menu state
+            if (gCurrentObject->oMenuButtonScale == 0.0f)
+                gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
+            else
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+            break;
+        case MENU_BUTTON_STATE_SHRINKING: // Switching from menu to button state
+            if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
+                bhv_menu_button_shrinking_to_main_menu(gCurrentObject);
+            }
+            if (sCurrentMenuLevel == MENU_LAYER_SUBMENU) {
+                bhv_menu_button_shrinking_to_submenu(gCurrentObject); // Only used for score files
+            }
+            sTextBaseAlpha = 0;
+            sCursorClickingTimer = 4;
+            if (gCurrentObject->oMenuButtonScale == 0.0f)
+                gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
+            else
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+            break;
+        case MENU_BUTTON_STATE_ZOOM_IN_OUT:
+            bhv_menu_button_zoom_in_out(gCurrentObject);
+            sCursorClickingTimer = 4;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+        case MENU_BUTTON_STATE_ZOOM_IN:
+            bhv_menu_button_zoom_in(gCurrentObject);
+            sCursorClickingTimer = 4;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+        case MENU_BUTTON_STATE_ZOOM_OUT:
+            bhv_menu_button_zoom_out(gCurrentObject);
+            sCursorClickingTimer = 4;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+        case MENU_BUTTON_STATE_GROW_TO_FULL:
+            if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
+                bhv_menu_button_growing_from_main_menu(gCurrentObject);
+            }
+            if (sCurrentMenuLevel == MENU_LAYER_SUBMENU) {
+                bhv_menu_button_growing_from_submenu(gCurrentObject);
+            }
+            sTextBaseAlpha = 0;
+            sCursorClickingTimer = 4;
+            if (gCurrentObject->oMenuButtonScale == 0.0f)
+                gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
+            else
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+            break;
+        case MENU_BUTTON_STATE_SHRINK_TO_DEFAULT:
+            if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
+                bhv_menu_button_shrinking_to_main_menu(gCurrentObject);
+            }
+            if (sCurrentMenuLevel == MENU_LAYER_SUBMENU) {
+                bhv_menu_button_shrinking_to_submenu(gCurrentObject);
+            }
+            sTextBaseAlpha = 0;
+            sCursorClickingTimer = 4;
+            gCurrentObject->header.gfx.scale[0] = (gCurrentObject->oMenuButtonScale == 0.0f) ? gCurrentObject->oMenuButtonScalerNrrw : gCurrentObject->oMenuButtonScale;
+            break;
+    }
+    if (gCurrentObject->oMenuButtonScale == 0.0f) {
+        gCurrentObject->header.gfx.scale[1] = gCurrentObject->oMenuButtonScalerNorm;
+        gCurrentObject->header.gfx.scale[2] = gCurrentObject->oMenuButtonScalerNorm;
+    }
+    else {
+        gCurrentObject->header.gfx.scale[1] = gCurrentObject->oMenuButtonScale;
+        gCurrentObject->header.gfx.scale[2] = gCurrentObject->oMenuButtonScale;
+    }
+}
+#else
 void bhv_menu_button_loop(void) {
     switch (gCurrentObject->oMenuButtonState) {
         case MENU_BUTTON_STATE_DEFAULT: // Button state
@@ -558,6 +695,7 @@ void bhv_menu_button_loop(void) {
     }
     cur_obj_scale(gCurrentObject->oMenuButtonScale);
 }
+#endif
 
 /**
  * Handles how to exit the score file menu using button states.
@@ -582,6 +720,77 @@ void exit_score_file_to_score_menu(struct Object *scoreFileButton, s8 scoreButto
  * Render buttons for the score menu.
  * Also check if the save file exists to render a different Mario button.
  */
+#ifdef TARGET_N3DS
+void render_score_menu_buttons(struct Object *scoreButton) {
+    // File A
+    if (save_file_exists(SAVE_FILE_A) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_A] =
+            spawn_object_rel_with_rot_x_scaling(scoreButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      569, 311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_A] =
+            spawn_object_rel_with_rot_x_scaling(scoreButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569,
+                                      311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_A]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_A]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_A]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File B
+    if (save_file_exists(SAVE_FILE_B) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(scoreButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      -133, 311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(scoreButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton,
+                                      -133, 311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_B]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_B]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_B]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File C
+    if (save_file_exists(SAVE_FILE_C) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            scoreButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            scoreButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_C]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_C]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_C]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File D
+    if (save_file_exists(SAVE_FILE_D) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_D] =
+            spawn_object_rel_with_rot_x_scaling(scoreButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      -133, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_SCORE_FILE_D] = spawn_object_rel_with_rot_x_scaling(
+            scoreButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, -133, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_D]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_D]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_FILE_D]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Return to main menu button
+    sMainMenuButtons[MENU_BUTTON_SCORE_RETURN] = spawn_object_rel_with_rot_x_scaling(
+        scoreButton, MODEL_MAIN_MENU_YELLOW_FILE_BUTTON, bhvMenuButton, 569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_SCORE_RETURN]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_RETURN]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_RETURN]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to copy menu button
+    sMainMenuButtons[MENU_BUTTON_SCORE_COPY_FILE] = spawn_object_rel_with_rot_x_scaling(
+        scoreButton, MODEL_MAIN_MENU_BLUE_COPY_BUTTON, bhvMenuButton, 0, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_SCORE_COPY_FILE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_COPY_FILE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_COPY_FILE]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to erase menu button
+    sMainMenuButtons[MENU_BUTTON_SCORE_ERASE_FILE] = spawn_object_rel_with_rot_x_scaling(
+        scoreButton, MODEL_MAIN_MENU_RED_ERASE_BUTTON, bhvMenuButton, -569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_SCORE_ERASE_FILE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_SCORE_ERASE_FILE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_SCORE_ERASE_FILE]->oMenuButtonScalerNrrw = scalerNarrow;
+}
+#else
 void render_score_menu_buttons(struct Object *scoreButton) {
     // File A
     if (save_file_exists(SAVE_FILE_A) == TRUE) {
@@ -637,6 +846,7 @@ void render_score_menu_buttons(struct Object *scoreButton) {
         scoreButton, MODEL_MAIN_MENU_RED_ERASE_BUTTON, bhvMenuButton, -711, -388, -100, 0, -0x8000, 0);
     sMainMenuButtons[MENU_BUTTON_SCORE_ERASE_FILE]->oMenuButtonScale = 0.11111111f;
 }
+#endif
 
 #ifdef VERSION_EU
     #define SCORE_TIMER 46
@@ -694,6 +904,75 @@ void check_score_menu_clicked_buttons(struct Object *scoreButton) {
  * Render buttons for the copy menu.
  * Also check if the save file exists to render a different Mario button.
  */
+#ifdef TARGET_N3DS
+void render_copy_menu_buttons(struct Object *copyButton) {
+    // File A
+    if (save_file_exists(SAVE_FILE_A) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_A] =
+            spawn_object_rel_with_rot_x_scaling(copyButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton, 569,
+                                      311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_A] = spawn_object_rel_with_rot_x_scaling(
+            copyButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569, 311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_A]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_A]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_A]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File B
+    if (save_file_exists(SAVE_FILE_B) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(copyButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      -133, 311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(copyButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, -133,
+                                      311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_B]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_B]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_B]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File C
+    if (save_file_exists(SAVE_FILE_C) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            copyButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            copyButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_C]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_C]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_C]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File D
+    if (save_file_exists(SAVE_FILE_D) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_D] = spawn_object_rel_with_rot_x_scaling(
+            copyButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton, -133, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_COPY_FILE_D] = spawn_object_rel_with_rot_x_scaling(
+            copyButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, -133, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_D]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_D]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_FILE_D]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Return to main menu button
+    sMainMenuButtons[MENU_BUTTON_COPY_RETURN] = spawn_object_rel_with_rot_x_scaling(
+        copyButton, MODEL_MAIN_MENU_YELLOW_FILE_BUTTON, bhvMenuButton, 569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_COPY_RETURN]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_RETURN]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_RETURN]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to scire menu button
+    sMainMenuButtons[MENU_BUTTON_COPY_CHECK_SCORE] = spawn_object_rel_with_rot_x_scaling(
+        copyButton, MODEL_MAIN_MENU_GREEN_SCORE_BUTTON, bhvMenuButton, 0, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_COPY_CHECK_SCORE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_CHECK_SCORE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_CHECK_SCORE]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to erase menu button
+    sMainMenuButtons[MENU_BUTTON_COPY_ERASE_FILE] = spawn_object_rel_with_rot_x_scaling(
+        copyButton, MODEL_MAIN_MENU_RED_ERASE_BUTTON, bhvMenuButton, -569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_COPY_ERASE_FILE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_COPY_ERASE_FILE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_COPY_ERASE_FILE]->oMenuButtonScalerNrrw = scalerNarrow;
+}
+#else
 void render_copy_menu_buttons(struct Object *copyButton) {
     // File A
     if (save_file_exists(SAVE_FILE_A) == TRUE) {
@@ -747,6 +1026,7 @@ void render_copy_menu_buttons(struct Object *copyButton) {
         copyButton, MODEL_MAIN_MENU_RED_ERASE_BUTTON, bhvMenuButton, -711, -388, -100, 0, -0x8000, 0);
     sMainMenuButtons[MENU_BUTTON_COPY_ERASE_FILE]->oMenuButtonScale = 0.11111111f;
 }
+#endif
 
 #ifdef VERSION_EU
     #define BUZZ_TIMER 36
@@ -868,6 +1148,77 @@ void check_copy_menu_clicked_buttons(struct Object *copyButton) {
  * Render buttons for the erase menu.
  * Also check if the save file exists to render a different Mario button.
  */
+#ifdef TARGET_N3DS
+void render_erase_menu_buttons(struct Object *eraseButton) {
+    // File A
+    if (save_file_exists(SAVE_FILE_A) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_A] =
+            spawn_object_rel_with_rot_x_scaling(eraseButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      569, 311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_A] =
+            spawn_object_rel_with_rot_x_scaling(eraseButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569,
+                                      311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_A]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_A]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_A]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File B
+    if (save_file_exists(SAVE_FILE_B) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(eraseButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      -133, 311, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_B] =
+            spawn_object_rel_with_rot_x_scaling(eraseButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton,
+                                      -133, 311, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_B]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_B]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_B]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File C
+    if (save_file_exists(SAVE_FILE_C) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            eraseButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_C] = spawn_object_rel_with_rot_x_scaling(
+            eraseButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, 569, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_C]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_C]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_C]->oMenuButtonScalerNrrw = scalerNarrow;
+    // File D
+    if (save_file_exists(SAVE_FILE_D) == TRUE) {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_D] =
+            spawn_object_rel_with_rot_x_scaling(eraseButton, MODEL_MAIN_MENU_MARIO_SAVE_BUTTON, bhvMenuButton,
+                                      -133, 0, -100, 0, -0x8000, 0);
+    } else {
+        sMainMenuButtons[MENU_BUTTON_ERASE_FILE_D] = spawn_object_rel_with_rot_x_scaling(
+            eraseButton, MODEL_MAIN_MENU_MARIO_NEW_BUTTON, bhvMenuButton, -133, 0, -100, 0, -0x8000, 0);
+    }
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_D]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_D]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_FILE_D]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Return to main menu button
+    sMainMenuButtons[MENU_BUTTON_ERASE_RETURN] = spawn_object_rel_with_rot_x_scaling(
+        eraseButton, MODEL_MAIN_MENU_YELLOW_FILE_BUTTON, bhvMenuButton, 569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_ERASE_RETURN]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_RETURN]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_RETURN]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to score menu button
+    sMainMenuButtons[MENU_BUTTON_ERASE_CHECK_SCORE] = spawn_object_rel_with_rot_x_scaling(
+        eraseButton, MODEL_MAIN_MENU_GREEN_SCORE_BUTTON, bhvMenuButton, 0, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_ERASE_CHECK_SCORE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_CHECK_SCORE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_CHECK_SCORE]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Switch to copy menu button
+    sMainMenuButtons[MENU_BUTTON_ERASE_COPY_FILE] = spawn_object_rel_with_rot_x_scaling(
+        eraseButton, MODEL_MAIN_MENU_BLUE_COPY_BUTTON, bhvMenuButton, -569, -388, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_ERASE_COPY_FILE]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_ERASE_COPY_FILE]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_ERASE_COPY_FILE]->oMenuButtonScalerNrrw = scalerNarrow;
+}
+#else
 void render_erase_menu_buttons(struct Object *eraseButton) {
     // File A
     if (save_file_exists(SAVE_FILE_A) == TRUE) {
@@ -923,6 +1274,7 @@ void render_erase_menu_buttons(struct Object *eraseButton) {
         eraseButton, MODEL_MAIN_MENU_BLUE_COPY_BUTTON, bhvMenuButton, -711, -388, -100, 0, -0x8000, 0);
     sMainMenuButtons[MENU_BUTTON_ERASE_COPY_FILE]->oMenuButtonScale = 0.11111111f;
 }
+#endif
 
 /**
  * Erase Menu phase actions that handles what to do when a file button is clicked.
@@ -1017,6 +1369,59 @@ void check_erase_menu_clicked_buttons(struct Object *eraseButton) {
 /**
  * Render buttons for the sound mode menu.
  */
+#ifdef TARGET_N3DS
+void render_sound_mode_menu_buttons(struct Object *soundModeButton) {
+    // Stereo option button
+    sMainMenuButtons[MENU_BUTTON_STEREO] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, 426, SOUND_BUTTON_Y, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_STEREO]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_STEREO]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_STEREO]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Mono option button
+    sMainMenuButtons[MENU_BUTTON_MONO] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, 0, SOUND_BUTTON_Y, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_MONO]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_MONO]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_MONO]->oMenuButtonScalerNrrw = scalerNarrow;
+    // Headset option button
+    sMainMenuButtons[MENU_BUTTON_HEADSET] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, -426, SOUND_BUTTON_Y, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_HEADSET]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_HEADSET]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_HEADSET]->oMenuButtonScalerNrrw = scalerNarrow;
+
+#ifdef VERSION_EU
+    // English option button
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_ENGLISH] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, 426, -111, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_ENGLISH]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_ENGLISH]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_ENGLISH]->oMenuButtonScalerNrrw = scalerNarrow;
+    // French option button
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_FRENCH] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, 0, -111, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_FRENCH]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_FRENCH]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_FRENCH]->oMenuButtonScalerNrrw = scalerNarrow;
+    // German option button
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_GERMAN] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_GENERIC_BUTTON, bhvMenuButton, -426, -111, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_GERMAN]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_GERMAN]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_GERMAN]->oMenuButtonScalerNrrw = scalerNarrow;
+
+    // Return button
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_RETURN] = spawn_object_rel_with_rot_x_scaling(
+        soundModeButton, MODEL_MAIN_MENU_YELLOW_FILE_BUTTON, bhvMenuButton, 0, -533, -100, 0, -0x8000, 0);
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_RETURN]->oMenuButtonScale = 0.0f;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_RETURN]->oMenuButtonScalerNorm = scalerNorm;
+    sMainMenuButtons[MENU_BUTTON_LANGUAGE_RETURN]->oMenuButtonScalerNrrw = scalerNarrow;
+#else
+    // Zoom in current selection
+    sMainMenuButtons[MENU_BUTTON_OPTION_MIN + sSoundMode]->oMenuButtonState = MENU_BUTTON_STATE_ZOOM_IN;
+#endif
+}
+#else
 void render_sound_mode_menu_buttons(struct Object *soundModeButton) {
     // Stereo option button
     sMainMenuButtons[MENU_BUTTON_STEREO] = spawn_object_rel_with_rot(
@@ -1054,6 +1459,7 @@ void render_sound_mode_menu_buttons(struct Object *soundModeButton) {
     sMainMenuButtons[MENU_BUTTON_OPTION_MIN + sSoundMode]->oMenuButtonState = MENU_BUTTON_STATE_ZOOM_IN;
 #endif
 }
+#endif
 #undef SOUND_BUTTON_Y
 
 /**
@@ -1117,6 +1523,9 @@ void check_sound_mode_menu_clicked_buttons(struct Object *soundModeButton) {
 void load_main_menu_save_file(struct Object *fileButton, s32 fileNum) {
     if (fileButton->oMenuButtonState == MENU_BUTTON_STATE_FULLSCREEN) {
         sSelectedFileNum = fileNum;
+#ifdef TARGET_N3DS
+        fileButton->oMenuButtonScale = fileButton->oMenuButtonScale * 1.25f;
+#endif
     }
 }
 
@@ -1616,12 +2025,21 @@ void handle_controller_cursor_input(void) {
     sCursorPos[1] += rawStickY / 8;
 
     // Stop cursor from going offscreen
+#ifdef TARGET_N3DS
+    if (sCursorPos[0] > 160.0f) {
+        sCursorPos[0] = 160.0f;
+    }
+    if (sCursorPos[0] < -160.0f) {
+        sCursorPos[0] = -160.0f;
+    }
+#else
     if (sCursorPos[0] > 132.0f) {
         sCursorPos[0] = 132.0f;
     }
     if (sCursorPos[0] < -132.0f) {
         sCursorPos[0] = -132.0f;
     }
+#endif
 
     if (sCursorPos[1] > 90.0f) {
         sCursorPos[1] = 90.0f;
