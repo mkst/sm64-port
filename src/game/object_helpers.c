@@ -479,26 +479,19 @@ struct Object *spawn_object_rel_with_rot(struct Object *parent, u32 model, const
 }
 
 #ifdef TARGET_N3DS
+/* 
+ * Basically a special function to hard code menu button scale values independently instead of using oMenuButtonScale
+ */
 struct Object *spawn_object_rel_with_rot_x_scaling(struct Object *parent, u32 model, const BehaviorScript *behavior,
                                          s16 xOff, s16 yOff, s16 zOff, s16 rx, s16 ry, UNUSED s16 rz) {
-    struct Object *newObj = spawn_object_at_origin_x_scaling(parent, 0, model, behavior);
-    newObj->header.gfx.scale[0] = 0.08888888f; // basically a special function to hard code scale values independently instead of using oMenuButtonScale
-    newObj->header.gfx.scale[1] = 0.11111111f;
-    newObj->header.gfx.scale[2] = 0.11111111f;
-    
-    newObj->transform[0][0] *= newObj->header.gfx.scale[0];
-    newObj->transform[0][1] *= newObj->header.gfx.scale[0];
-    newObj->transform[0][2] *= newObj->header.gfx.scale[0];
-    
-    newObj->transform[1][0] *= newObj->header.gfx.scale[1];
-    newObj->transform[1][1] *= newObj->header.gfx.scale[1];
-    newObj->transform[1][2] *= newObj->header.gfx.scale[1];
-    
-    newObj->transform[2][0] *= newObj->header.gfx.scale[2];
-    newObj->transform[2][1] *= newObj->header.gfx.scale[2];
-    newObj->transform[2][2] *= newObj->header.gfx.scale[2];
-    
-    newObj->oFlags |= OBJ_FLAG_TRANSFORM_RELATIVE_TO_PARENT; // this will always overwrite whatever you set oMenuButtonScale to be on a child object, hence the need for this function
+    struct Object *newObj = spawn_object_at_origin(parent, 0, model, behavior);
+
+    newObj->header.gfx.scale[1], newObj->header.gfx.scale[2] = 0.11111111f;
+    newObj->header.gfx.scale[0] = newObj->header.gfx.scale[1] / 1.25f; // 1.25f = (current aspect ratio / default aspect ratio) for 3DS
+
+    obj_apply_scale_to_transform(newObj); // permanently gives buttons a skewed scale, needs to be divided out to return to default
+
+    newObj->oFlags |= OBJ_FLAG_TRANSFORM_RELATIVE_TO_PARENT; // ties child obj and parent object oMenuButtonScale, removing breaks menu
     obj_set_parent_relative_pos(newObj, xOff, yOff, zOff);
     obj_set_angle(newObj, rx, ry, zOff);
 
@@ -568,41 +561,6 @@ struct Object *spawn_object_at_origin(struct Object *parent, UNUSED s32 unusedAr
 
     return obj;
 }
-
-#ifdef TARGET_N3DS
-struct Object *spawn_object_at_origin_x_scaling(struct Object *parent, UNUSED s32 unusedArg, u32 model,
-                                      const BehaviorScript *behavior) {
-    struct Object *obj;
-    const BehaviorScript *behaviorAddr;
-
-    behaviorAddr = segmented_to_virtual(behavior);
-    obj = create_object(behaviorAddr);
-
-    obj->parentObj = parent;
-    obj->header.gfx.unk18 = parent->header.gfx.unk18;
-    obj->header.gfx.unk19 = parent->header.gfx.unk18;
-    obj->header.gfx.scale[0] = 0.08888888f; // doing this all again because I don't know when it commits to the geometry
-    obj->header.gfx.scale[1] = 0.11111111f;
-    obj->header.gfx.scale[2] = 0.11111111f;
-    
-    obj->transform[0][0] *= obj->header.gfx.scale[0];
-    obj->transform[0][1] *= obj->header.gfx.scale[0];
-    obj->transform[0][2] *= obj->header.gfx.scale[0];
-    
-    obj->transform[1][0] *= obj->header.gfx.scale[1];
-    obj->transform[1][1] *= obj->header.gfx.scale[1];
-    obj->transform[1][2] *= obj->header.gfx.scale[1];
-    
-    obj->transform[2][0] *= obj->header.gfx.scale[2];
-    obj->transform[2][1] *= obj->header.gfx.scale[2];
-    obj->transform[2][2] *= obj->header.gfx.scale[2];
-
-    geo_obj_init((struct GraphNodeObject *) &obj->header.gfx, gLoadedGraphNodes[model], gVec3fZero,
-                 gVec3sZero);
-
-    return obj;
-}
-#endif
 
 struct Object *spawn_object(struct Object *parent, s32 model, const BehaviorScript *behavior) {
     struct Object *obj;

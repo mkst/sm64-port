@@ -28,8 +28,9 @@
 #endif
 
 #ifdef TARGET_N3DS
-const float scalerNarrow = 0.08888888f;
-const float scalerNorm = 0.11111111f;
+const float aspectScale = 1.25f; // 1.25f = (current aspect ratio / default aspect ratio) for 3DS
+const float scalerNorm = 0.11111111f; // menu state and default scale
+const float scalerNarrow = scalerNorm / aspectScale; // button state divides out hardcoded x-axis scaling
 #endif
 
 /**
@@ -318,7 +319,7 @@ void beh_yellow_background_menu_init(void) {
     gCurrentObject->oFaceAngleYaw = 0x8000;
     gCurrentObject->oMenuButtonScale = 9.0f;
 #ifdef TARGET_N3DS
-    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * aspectScale;
 #endif
 }
 
@@ -329,7 +330,7 @@ void beh_yellow_background_menu_init(void) {
 void beh_yellow_background_menu_loop(void) {
     cur_obj_scale(9.0f);
 #ifdef TARGET_N3DS
-    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+    gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * aspectScale;
 #endif
 }
 
@@ -504,14 +505,12 @@ static void bhv_menu_button_zoom_in_out(struct Object *button) {
 static void bhv_menu_button_zoom_in(struct Object *button) {
 #ifdef TARGET_N3DS
     if (gCurrentObject->oMenuButtonScale == 0.0f) {
-        button->oMenuButtonScalerNrrw += 0.00176;
-        button->oMenuButtonScalerNorm += 0.00176;
+        button->oMenuButtonScalerNrrw += 0.0022 / aspectScale; // divide out x-axis scaling
+        button->oMenuButtonScalerNorm += 0.0022;
     }
     else        
-        button->oMenuButtonScale += 0.0022;
-#else
-    button->oMenuButtonScale += 0.0022;
 #endif
+    button->oMenuButtonScale += 0.0022;
     button->oMenuButtonTimer++;
     if (button->oMenuButtonTimer == 10) {
         button->oMenuButtonState = MENU_BUTTON_STATE_DEFAULT;
@@ -527,14 +526,12 @@ static void bhv_menu_button_zoom_in(struct Object *button) {
 static void bhv_menu_button_zoom_out(struct Object *button) {
 #ifdef TARGET_N3DS
     if (gCurrentObject->oMenuButtonScale == 0.0f) {
-        button->oMenuButtonScalerNrrw -= 0.00176;
-        button->oMenuButtonScalerNorm -= 0.00176;
+        button->oMenuButtonScalerNrrw -= 0.0022 / aspectScale; // divide out x-axis scaling
+        button->oMenuButtonScalerNorm -= 0.0022;
     }
     else        
-        button->oMenuButtonScale -= 0.0022;
-#else
-    button->oMenuButtonScale -= 0.0022;
 #endif
+    button->oMenuButtonScale -= 0.0022;
     button->oMenuButtonTimer++;
     if (button->oMenuButtonTimer == 10) {
         button->oMenuButtonState = MENU_BUTTON_STATE_DEFAULT;
@@ -586,7 +583,7 @@ void bhv_menu_button_loop(void) {
             if (gCurrentObject->oMenuButtonScale == 0.0f)
                 gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
             else
-                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * aspectScale;
             break;
         case MENU_BUTTON_STATE_SHRINKING: // Switching from menu to button state
             if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
@@ -600,7 +597,7 @@ void bhv_menu_button_loop(void) {
             if (gCurrentObject->oMenuButtonScale == 0.0f)
                 gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
             else
-                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * aspectScale;
             break;
         case MENU_BUTTON_STATE_ZOOM_IN_OUT:
             bhv_menu_button_zoom_in_out(gCurrentObject);
@@ -629,7 +626,7 @@ void bhv_menu_button_loop(void) {
             if (gCurrentObject->oMenuButtonScale == 0.0f)
                 gCurrentObject->header.gfx.scale[0] = (sCurrentMenuLevel == MENU_LAYER_SUBMENU) ? gCurrentObject->oMenuButtonScalerNorm : gCurrentObject->oMenuButtonScalerNrrw;
             else
-                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * 1.25f;
+                gCurrentObject->header.gfx.scale[0] = gCurrentObject->oMenuButtonScale * aspectScale;
             break;
         case MENU_BUTTON_STATE_SHRINK_TO_DEFAULT:
             if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
@@ -1524,7 +1521,7 @@ void load_main_menu_save_file(struct Object *fileButton, s32 fileNum) {
     if (fileButton->oMenuButtonState == MENU_BUTTON_STATE_FULLSCREEN) {
         sSelectedFileNum = fileNum;
 #ifdef TARGET_N3DS
-        fileButton->oMenuButtonScale = fileButton->oMenuButtonScale * 1.25f;
+        fileButton->oMenuButtonScale = fileButton->oMenuButtonScale * aspectScale;
 #endif
     }
 }
