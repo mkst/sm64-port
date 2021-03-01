@@ -10,6 +10,10 @@
 #include "src/minimap/textures/aa_off_t3x.h"
 #include "src/minimap/textures/resume_t3x.h"
 #include "src/minimap/textures/exit_t3x.h"
+#include "src/minimap/textures/menu_cleft_t3x.h"
+#include "src/minimap/textures/menu_cright_t3x.h"
+#include "src/minimap/textures/menu_cdown_t3x.h"
+#include "src/minimap/textures/menu_cup_t3x.h"
 
 struct gfx_configuration
 {
@@ -56,6 +60,17 @@ static const vertex vertex_list_button[] =
     { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
     { {   0.0f,  64.0f, 0.5f, 1.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
     { {  64.0f,  64.0f, 0.5f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } }
+};
+
+static const vertex vertex_list_button_thin[] =
+{
+    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+    { {  64.0f,  32.0f, 0.5f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+    { {  64.0f,   0.0f, 0.5f, 1.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+
+    { {   0.0f,   0.0f, 0.5f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+    { {   0.0f,  32.0f, 0.5f, 1.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } },
+    { {  64.0f,  32.0f, 0.5f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f } }
 };
 
 #endif

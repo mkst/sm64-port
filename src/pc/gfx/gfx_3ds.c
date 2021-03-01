@@ -175,7 +175,7 @@ static void gfx_3ds_handle_events(void)
     touchPosition pos;
     hidTouchRead(&pos);
 
-    if (pos.px || pos.py)
+    if ((pos.px || pos.py) && (pos.px < 160))
     {
         debounce = 8;
         if (gShowConfigMenu)

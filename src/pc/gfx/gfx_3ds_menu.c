@@ -11,6 +11,7 @@ static int buffer_offset;
 static C3D_Tex mode_400_tex, mode_800_tex;
 static C3D_Tex aa_off_tex, aa_on_tex;
 static C3D_Tex resume_tex, exit_tex;
+static C3D_Tex menu_cleft_tex, menu_cright_tex, menu_cdown_tex, menu_cup_tex;
 
 static u8 debounce;
 
@@ -41,7 +42,7 @@ static void gfx_3ds_menu_draw_background(float *vbo_buffer)
     buffer_offset += 6;
 }
 
-static void gfx_3ds_menu_draw_button(float *vbo_buffer, int x, int y, C3D_Tex texture)
+static void gfx_3ds_menu_draw_button(float *vbo_buffer, int x, int y, C3D_Tex texture, bool thin)
 {
     Mtx_Identity(&modelView);
     Mtx_Translate(&modelView, x, 240 - y, 0.0f, false);
@@ -51,8 +52,10 @@ static void gfx_3ds_menu_draw_button(float *vbo_buffer, int x, int y, C3D_Tex te
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_modelView, &modelView);
     C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, uLoc_projection, &projection);
 
+    const vertex *vertex_list = thin ? vertex_list_button_thin : vertex_list_button;
+
     memcpy(vbo_buffer + buffer_offset * VERTEX_SHADER_SIZE,
-           vertex_list_button,
+           vertex_list,
            sizeof(vertex_list_button));
 
     C3D_TexBind(0, &texture);
@@ -71,13 +74,25 @@ static void gfx_3ds_menu_draw_button(float *vbo_buffer, int x, int y, C3D_Tex te
 static void gfx_3ds_menu_draw_buttons(float * vertex_buffer)
 {
     // aa
-    gfx_3ds_menu_draw_button(vertex_buffer, 48, 96, gfx_config.useAA ? aa_on_tex : aa_off_tex);
+    gfx_3ds_menu_draw_button(vertex_buffer, 11, 96, gfx_config.useAA ? aa_on_tex : aa_off_tex, false);
     // screen mode
-    gfx_3ds_menu_draw_button(vertex_buffer, 208, 96, gfx_config.useWide ? mode_800_tex : mode_400_tex);
+    gfx_3ds_menu_draw_button(vertex_buffer, 86, 96, gfx_config.useWide ? mode_800_tex : mode_400_tex, false);
     // resume
-    gfx_3ds_menu_draw_button(vertex_buffer, 48, 208, resume_tex);
+    gfx_3ds_menu_draw_button(vertex_buffer, 11, 208, resume_tex, false);
     // exit game
-    gfx_3ds_menu_draw_button(vertex_buffer, 208, 208, exit_tex);
+    gfx_3ds_menu_draw_button(vertex_buffer, 86, 208, exit_tex, false);
+}
+
+static void gfx_3ds_menu_draw_cbuttons(float * vertex_buffer)
+{
+    // cleft
+    gfx_3ds_menu_draw_button(vertex_buffer, 170, 122+64, menu_cleft_tex, false);
+    // cright
+    gfx_3ds_menu_draw_button(vertex_buffer, 245, 122+64, menu_cright_tex, false);
+    // cdown
+    gfx_3ds_menu_draw_button(vertex_buffer, 207, 197+32, menu_cdown_tex, true);
+    // cup
+    gfx_3ds_menu_draw_button(vertex_buffer, 207, 79+32, menu_cup_tex, true);
 }
 
 static bool is_inside_box(int pos_x, int pos_y, int x, int y, int width, int height)
@@ -95,7 +110,7 @@ menu_action gfx_3ds_menu_on_touch(int x, int y)
     debounce = 8; // wait quarter second between mashing
 
     // aa
-    if (is_inside_box(touch_x, touch_y, 48, 32, 64, 64))
+    if (is_inside_box(touch_x, touch_y, 11, 32, 64, 64))
     {
         // cannot use AA in 3D mode
         if (gfx_config.useWide)
@@ -106,7 +121,7 @@ menu_action gfx_3ds_menu_on_touch(int x, int y)
         return DO_NOTHING;
     }
     // screen mode
-    if (is_inside_box(touch_x, touch_y, 208, 32, 64, 64))
+    if (is_inside_box(touch_x, touch_y, 86, 32, 64, 64))
     {
         gfx_config.useWide = !gfx_config.useWide;
         // disable AA if 3D mode
@@ -115,12 +130,12 @@ menu_action gfx_3ds_menu_on_touch(int x, int y)
         return CONFIG_CHANGED;
     }
     // resume
-    if (is_inside_box(touch_x, touch_y, 48, 144, 64, 64))
+    if (is_inside_box(touch_x, touch_y, 11, 144, 64, 64))
     {
         return EXIT_MENU;
     }
     // exit?
-    if (is_inside_box(touch_x, touch_y, 208, 144, 64, 64))
+    if (is_inside_box(touch_x, touch_y, 86, 144, 64, 64))
     {
         gShouldRun = false;
     }
@@ -148,6 +163,18 @@ void gfx_3ds_menu_init()
 
     load_t3x_texture(&exit_tex, NULL, exit_t3x, exit_t3x_size);
     C3D_TexSetFilter(&exit_tex, GPU_LINEAR, GPU_NEAREST);
+
+    load_t3x_texture(&menu_cleft_tex, NULL, menu_cleft_t3x, menu_cleft_t3x_size);
+    C3D_TexSetFilter(&menu_cleft_tex, GPU_LINEAR, GPU_NEAREST);
+
+    load_t3x_texture(&menu_cright_tex, NULL, menu_cright_t3x, menu_cright_t3x_size);
+    C3D_TexSetFilter(&menu_cright_tex, GPU_LINEAR, GPU_NEAREST);
+
+    load_t3x_texture(&menu_cdown_tex, NULL, menu_cdown_t3x, menu_cdown_t3x_size);
+    C3D_TexSetFilter(&menu_cdown_tex, GPU_LINEAR, GPU_NEAREST);
+
+    load_t3x_texture(&menu_cup_tex, NULL, menu_cup_t3x, menu_cup_t3x_size);
+    C3D_TexSetFilter(&menu_cup_tex, GPU_LINEAR, GPU_NEAREST);
 }
 
 void gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled)
@@ -160,6 +187,8 @@ void gfx_3ds_menu_draw(float *vertex_buffer, int vertex_offset, bool enabled)
         gfx_3ds_menu_draw_buttons(vertex_buffer);
     if (debounce)
         debounce--;
+
+    gfx_3ds_menu_draw_cbuttons(vertex_buffer);
 }
 
 #endif
