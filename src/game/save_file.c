@@ -11,6 +11,7 @@
 #include "level_table.h"
 #include "course_table.h"
 #include "thread6.h"
+#include "macros.h"
 
 #define MENU_DATA_MAGIC 0x4849
 #define SAVE_FILE_MAGIC 0x4441
