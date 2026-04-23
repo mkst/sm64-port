@@ -176,7 +176,7 @@ inline void audio_3ds_run_one_frame() {
 
 Thread threadId = NULL;
 
-static void audio_3ds_loop()
+static void audio_3ds_loop(void *arg)
 {
     
     while (running)
