@@ -138,13 +138,13 @@ WSL is the preferred route, but you can also use MSYS2 (MINGW64) to compile.
 
 For each instruction copy and paste the contents into the **MSYS2 MinGW 64-bit** console.
 
-**1. Install and Configure MSYS2:**
+**Install and Configure MSYS2:**
 
-1. Navigate to https://www.msys2.org/ and download the installer.
+Navigate to https://www.msys2.org/ and download the installer.
 
-2. Install and not run yet (unchecked the box that says "Run MSYS now").
+Install and not run yet (unchecked the box that says "Run MSYS now").
 
-3. Add the keyserver for package validation:
+Add the keyserver for package validation:
 
 ```
 pacman-key --recv BC26F752D25B92CE272E0F44F7FD5492264BB9D0 --keyserver keyserver.ubuntu.com
@@ -152,11 +152,11 @@ pacman-key --lsign BC26F752D25B92CE272E0F44F7FD5492264BB9D0
 ```
 You can paste the commands to MINGW64 with _"Shift" + "Insert"_. It's safer to do one line at a time during this guide.
 
-4. Add the DevKitPro keyring:
+Add the DevKitPro keyring:
 ```
 pacman -U --noconfirm https://downloads.devkitpro.org/devkitpro-keyring.pkg.tar.xz
 ```
-5. Add the DevKitPro package repositories:
+Add the DevKitPro package repositories:
 ```
 cat <<EOF >> /etc/pacman.conf
 [dkp-libs]
@@ -165,13 +165,13 @@ Server = https://downloads.devkitpro.org/packages
 Server = https://downloads.devkitpro.org/packages/windows
 EOF
 ```
-6. Update dependencies:
+Update dependencies:
 ```
 pacman -Syu --noconfirm
 ```
 (Note: MINGW64 may close itself when done. If it does, find MSYS2 MinGW 64bit in your Start Menu and open it again.)
 
-**2. Install Build Tools:**
+**Install Build Tools:**
 
 Install the necessary 3DS development packages and standard utilities:
 
@@ -193,7 +193,7 @@ export DEVKITPRO=/opt/devkitpro
 export DEVKITARM=/opt/devkitpro/devkitARM
 export DEVKITPPC=/opt/devkitpro/devkitPPC
 ```
-**3. Clone Repository & Prepare Branch:**
+**Clone Repository & Prepare Branch:**
 
 Clone the repository and immediately check out the 3DS port branch:
 
@@ -202,7 +202,7 @@ git clone https://github.com/mkst/sm64-port.git
 cd sm64-port
 git checkout 3ds-port
 ```
-**4. Provide the Base ROM:**
+**Provide the Base ROM:**
 Copy your legally obtained Super Mario 64 ROM into the root directory.
 (This assumes you have the ROM in C:\temp)
 ```
@@ -212,7 +212,7 @@ Change 'us' to 'eu', 'jp', or 'sh' depending on your ROM version.
 
 You can also do this with the Windows explorer, just place your ROM on the sm64-port folder.
 
-**5. Build the Port:**
+**Build the Port:**
 
 Due to a race condition with embedded libraries, you must build the host tools sequentially first, before building the game.
 
