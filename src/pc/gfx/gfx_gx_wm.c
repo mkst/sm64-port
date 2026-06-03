@@ -29,6 +29,11 @@ static void gfx_gx_wm_init(UNUSED const char *game_name, UNUSED bool start_in_fu
         VIDEO_WaitVSync();
 }
 
+GXRModeObj *gfx_gx_wm_get_rmode(void)
+{
+    return rmode;
+}
+
 static void gfx_gx_wm_set_keyboard_callbacks(UNUSED bool (*on_key_down)(int scancode), UNUSED bool (*on_key_up)(int scancode), UNUSED void (*on_all_keys_up)(void))
 {
 }

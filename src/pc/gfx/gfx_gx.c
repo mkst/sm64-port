@@ -38,6 +38,12 @@ static size_t texture_memory_used;
 
 static unsigned char gp_fifo[DEFAULT_FIFO_SIZE] __attribute__((aligned(32)));
 
+#define GX_NEAR_PLANE 16.0f
+#define GX_FAR_PLANE 24000.0f
+
+static Mtx44 gx_perspective_mtx; // 3D: feeds -w as z, GX divides by real w
+static Mtx44 gx_ortho_mtx;       // 2D/HUD: pass-through of already-NDC coords
+
 static bool gfx_gx_z_is_from_0_to_1(void)
 {
     return true;
@@ -310,18 +316,13 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
     uint8_t num_inputs = shader_program_pool[current_shader].cc_features.num_inputs;
     uint8_t num_tex = shader_program_pool[current_shader].cc_features.used_textures[0] + shader_program_pool[current_shader].cc_features.used_textures[1];
 
-    Mtx44 projection;
-    guMtxIdentity(projection);
+    // gfx_pc emits 2D rectangles with w == 1
+    bool is_2d = (buf_vbo[3] == 1.0f);
 
-    // HUD hack
-    if (buf_vbo_num_tris == 2 && buf_vbo[3] == 1.0f)
-    {
-        GX_LoadProjectionMtx(projection, GX_ORTHOGRAPHIC);
-    }
+    if (is_2d)
+        GX_LoadProjectionMtx(gx_ortho_mtx, GX_ORTHOGRAPHIC);
     else
-    {
-        GX_LoadProjectionMtx(projection, GX_PERSPECTIVE);
-    }
+        GX_LoadProjectionMtx(gx_perspective_mtx, GX_PERSPECTIVE);
 
     GX_Begin(GX_TRIANGLES, GX_VTXFMT0, 3 * buf_vbo_num_tris);
     {
@@ -330,9 +331,18 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
         float t[num_tex];
         for (size_t i = 0; i < 3 * buf_vbo_num_tris; i++)
         {
-            GX_Position3f32(buf_vbo[offset + 0],
-                            buf_vbo[offset + 1],
-                            buf_vbo[offset + 2]);
+            if (is_2d)
+            {
+                GX_Position3f32(buf_vbo[offset + 0],
+                                buf_vbo[offset + 1],
+                                buf_vbo[offset + 2]);
+            }
+            else
+            {
+                GX_Position3f32(buf_vbo[offset + 0],
+                                buf_vbo[offset + 1],
+                                -buf_vbo[offset + 3]);
+            }
             int vtxOffs = 4;
 
             for (int j = 0; j < num_tex; j++)
@@ -361,17 +371,67 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
     GX_End();
 }
 
+// Configure the embedded framebuffer and the EFB->XFB copy
+static void gx_setup_efb(void)
+{
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+
+    GX_SetCopyClear((GXColor){ 0, 0, 0, 0xff }, GX_MAX_Z24);
+
+    GX_SetViewport(0.0f, 0.0f, rmode->fbWidth, rmode->efbHeight, 0.0f, 1.0f);
+    GX_SetScissor(0, 0, rmode->fbWidth, rmode->efbHeight);
+    GX_SetDispCopyYScale((f32)rmode->xfbHeight / (f32)rmode->efbHeight);
+    GX_SetDispCopySrc(0, 0, rmode->fbWidth, rmode->efbHeight);
+    GX_SetDispCopyDst(rmode->fbWidth, rmode->xfbHeight);
+    GX_SetCopyFilter(rmode->aa, rmode->sample_pattern, GX_TRUE, rmode->vfilter);
+    GX_SetFieldMode(rmode->field_rendering, ((rmode->viHeight == 2 * rmode->xfbHeight) ? GX_ENABLE : GX_DISABLE));
+
+    if (rmode->aa)
+        GX_SetPixelFmt(GX_PF_RGB565_Z16, GX_ZC_LINEAR);
+    else
+        GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
+
+    GX_SetDispCopyGamma(GX_GM_1_0);
+}
+
+// Builds the two projection matrices used by gfx_gx_draw_triangles
+static void gx_build_projection(void)
+{
+    const f32 n = GX_NEAR_PLANE;
+    const f32 f = GX_FAR_PLANE;
+
+    memset(gx_perspective_mtx, 0, sizeof(gx_perspective_mtx));
+    gx_perspective_mtx[0][0] = 1.0f;
+    gx_perspective_mtx[1][1] = 1.0f;
+    gx_perspective_mtx[2][2] = -n / (f - n);       // near (w=n) -> NDC z -1
+    gx_perspective_mtx[2][3] = -(n * f) / (f - n); // far  (w=f) -> NDC z  0
+    gx_perspective_mtx[3][2] = -1.0f;
+    gx_perspective_mtx[3][3] = 0.0f;
+
+    memset(gx_ortho_mtx, 0, sizeof(gx_ortho_mtx));
+    gx_ortho_mtx[0][0] = 1.0f;
+    gx_ortho_mtx[1][1] = 1.0f;
+    gx_ortho_mtx[2][2] = 1.0f;
+    gx_ortho_mtx[3][3] = 1.0f;
+}
+
 static void gx_init()
 {
     // initialise graphics
     GX_Init(gp_fifo, DEFAULT_FIFO_SIZE);
+
+    gx_setup_efb();
+
     // other gx setup
     GX_SetCullMode(GX_CULL_NONE);
+    GX_SetColorUpdate(GX_TRUE);
+    GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
 
-    Mtx44 modelView;
-    guMtxIdentity(modelView);
-    modelView[2][2] = -1.0f;
-    GX_LoadPosMtxImm(modelView, GX_PNMTX0);
+    __Mtx ident;
+    guMtxIdentity(ident);
+    GX_LoadPosMtxImm(ident, GX_PNMTX0);
+
+    gx_build_projection();
 }
 
 static void gfx_gx_init(void)
