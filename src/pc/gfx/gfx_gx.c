@@ -54,44 +54,290 @@ static void gfx_gx_vertex_array_set_attribs(UNUSED struct ShaderProgram *prg)
 {
 }
 
+static bool shader_item_is_input(uint8_t item)
+{
+    return item >= SHADER_INPUT_1 && item <= SHADER_INPUT_4;
+}
+
+static bool shader_item_is_texture(uint8_t item)
+{
+    return item == SHADER_TEXEL0 || item == SHADER_TEXEL0A || item == SHADER_TEXEL1;
+}
+
+static int shader_item_input_index(uint8_t item)
+{
+    return shader_item_is_input(item) ? item - SHADER_INPUT_1 : -1;
+}
+
+static int formula_first_input(const uint8_t c[4])
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (shader_item_is_input(c[i]))
+            return shader_item_input_index(c[i]);
+    }
+    return -1;
+}
+
+static int formula_num_inputs(const uint8_t c[4])
+{
+    bool used[4] = { false };
+    int count = 0;
+
+    for (int i = 0; i < 4; i++)
+    {
+        int input = shader_item_input_index(c[i]);
+        if (input >= 0 && !used[input])
+        {
+            used[input] = true;
+            count++;
+        }
+    }
+    return count;
+}
+
+static uint8_t formula_first_texture(const uint8_t c[4])
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (shader_item_is_texture(c[i]))
+            return c[i];
+    }
+    return SHADER_0;
+}
+
+static uint8_t gx_color_channel_for_input(int input)
+{
+    switch (input)
+    {
+        case 0:
+            return GX_COLOR0A0;
+        case 1:
+            return GX_COLOR1A1;
+        default:
+            return GX_COLORNULL;
+    }
+}
+
+static uint32_t gx_texmap_for_item(uint8_t item)
+{
+    return item == SHADER_TEXEL1 ? GX_TEXMAP1 : GX_TEXMAP0;
+}
+
+static uint8_t gx_color_source_for_item(uint8_t item, int ras_input, int prev_input)
+{
+    int input = shader_item_input_index(item);
+    if (input >= 0)
+    {
+        if (input == prev_input)
+            return GX_CC_CPREV;
+        if (input == ras_input)
+            return GX_CC_RASC;
+        return GX_CC_ZERO;
+    }
+
+    switch (item)
+    {
+        case SHADER_TEXEL0:
+        case SHADER_TEXEL1:
+            return GX_CC_TEXC;
+        case SHADER_TEXEL0A:
+            return GX_CC_TEXA;
+        default:
+            return GX_CC_ZERO;
+    }
+}
+
+static uint8_t gx_alpha_source_for_item(uint8_t item, int ras_input, int prev_input)
+{
+    int input = shader_item_input_index(item);
+    if (input >= 0)
+    {
+        if (input == prev_input)
+            return GX_CA_APREV;
+        if (input == ras_input)
+            return GX_CA_RASA;
+        return GX_CA_ZERO;
+    }
+
+    switch (item)
+    {
+        case SHADER_TEXEL0:
+        case SHADER_TEXEL0A:
+        case SHADER_TEXEL1:
+            return GX_CA_TEXA;
+        default:
+            return GX_CA_ZERO;
+    }
+}
+
+static void gx_set_tev_order(uint8_t stage, uint8_t texture_item, int input)
+{
+    uint8_t texcoord = shader_item_is_texture(texture_item) ? GX_TEXCOORD0 : GX_TEXCOORDNULL;
+    uint32_t texmap = shader_item_is_texture(texture_item) ? gx_texmap_for_item(texture_item) : GX_TEXMAP_NULL;
+
+    GX_SetTevOrder(stage, texcoord, texmap, gx_color_channel_for_input(input));
+}
+
+static void gx_set_tev_op(uint8_t stage)
+{
+    GX_SetTevColorOp(stage, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+    GX_SetTevAlphaOp(stage, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+}
+
+static void gx_set_color_formula(uint8_t stage, const uint8_t c[4],
+                                 bool do_single, bool do_multiply, bool do_mix,
+                                 int ras_input, int prev_input)
+{
+    if (do_single)
+    {
+        GX_SetTevColorIn(stage, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO,
+                         gx_color_source_for_item(c[3], ras_input, prev_input));
+    }
+    else if (do_multiply)
+    {
+        GX_SetTevColorIn(stage, GX_CC_ZERO, gx_color_source_for_item(c[0], ras_input, prev_input),
+                         gx_color_source_for_item(c[2], ras_input, prev_input), GX_CC_ZERO);
+    }
+    else if (do_mix)
+    {
+        GX_SetTevColorIn(stage, gx_color_source_for_item(c[1], ras_input, prev_input),
+                         gx_color_source_for_item(c[0], ras_input, prev_input),
+                         gx_color_source_for_item(c[2], ras_input, prev_input), GX_CC_ZERO);
+    }
+    else
+    {
+        GX_SetTevColorIn(stage, GX_CC_ZERO, gx_color_source_for_item(c[0], ras_input, prev_input),
+                         gx_color_source_for_item(c[2], ras_input, prev_input),
+                         gx_color_source_for_item(c[3], ras_input, prev_input));
+    }
+    gx_set_tev_op(stage);
+}
+
+static void gx_set_alpha_formula(uint8_t stage, const uint8_t c[4],
+                                 bool do_single, bool do_multiply, bool do_mix,
+                                 int ras_input, int prev_input)
+{
+    if (do_single)
+    {
+        GX_SetTevAlphaIn(stage, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO,
+                         gx_alpha_source_for_item(c[3], ras_input, prev_input));
+    }
+    else if (do_multiply)
+    {
+        GX_SetTevAlphaIn(stage, GX_CA_ZERO, gx_alpha_source_for_item(c[0], ras_input, prev_input),
+                         gx_alpha_source_for_item(c[2], ras_input, prev_input), GX_CA_ZERO);
+    }
+    else if (do_mix)
+    {
+        GX_SetTevAlphaIn(stage, gx_alpha_source_for_item(c[1], ras_input, prev_input),
+                         gx_alpha_source_for_item(c[0], ras_input, prev_input),
+                         gx_alpha_source_for_item(c[2], ras_input, prev_input), GX_CA_ZERO);
+    }
+    else
+    {
+        GX_SetTevAlphaIn(stage, GX_CA_ZERO, gx_alpha_source_for_item(c[0], ras_input, prev_input),
+                         gx_alpha_source_for_item(c[2], ras_input, prev_input),
+                         gx_alpha_source_for_item(c[3], ras_input, prev_input));
+    }
+    gx_set_tev_op(stage);
+}
+
 // http://amnoid.de/gc/tev.html
 static void update_tev(struct ShaderProgram *prg)
 {
-    // default
+    const uint8_t *color = prg->cc_features.c[0];
+    bool has_tex = prg->cc_features.used_textures[0] || prg->cc_features.used_textures[1];
+    int num_chans = prg->cc_features.num_inputs > 2 ? 2 : prg->cc_features.num_inputs;
+
+    GX_SetNumChans(num_chans);
+    for (int i = 0; i < num_chans; i++)
+    {
+        GX_SetChanCtrl(GX_COLOR0A0 + i, GX_DISABLE, GX_SRC_VTX, GX_SRC_VTX,
+                       GX_LIGHTNULL, GX_DF_NONE, GX_AF_NONE);
+    }
+
+    GX_SetNumTexGens(has_tex ? 1 : 0);
+    if (has_tex)
+    {
+        GX_SetTexCoordGen(GX_TEXCOORD0, GX_TG_MTX2x4, GX_TG_TEX0, GX_IDENTITY);
+    }
+
+    if (formula_num_inputs(color) == 2 && prg->cc_features.do_mix[0]
+        && shader_item_is_input(color[0]) && shader_item_is_input(color[1])
+        && !shader_item_is_input(color[2]))
+    {
+        const uint8_t *alpha = prg->cc_features.color_alpha_same ? color : prg->cc_features.c[1];
+        int prev_input = shader_item_input_index(color[0]);
+        int ras_input = shader_item_input_index(color[1]);
+
+        GX_SetNumTevStages(2);
+        gx_set_tev_order(GX_TEVSTAGE0, SHADER_0, prev_input);
+        gx_set_color_formula(GX_TEVSTAGE0, (uint8_t[4]){ SHADER_0, SHADER_0, SHADER_0, color[0] },
+                             true, false, false, prev_input, -1);
+        gx_set_alpha_formula(GX_TEVSTAGE0, (uint8_t[4]){ SHADER_0, SHADER_0, SHADER_0, color[0] },
+                             true, false, false, prev_input, -1);
+
+        gx_set_tev_order(GX_TEVSTAGE1, color[2], ras_input);
+        gx_set_color_formula(GX_TEVSTAGE1, color, false, false, true, ras_input, prev_input);
+        gx_set_alpha_formula(GX_TEVSTAGE1, alpha,
+                             prg->cc_features.do_single[1],
+                             prg->cc_features.do_multiply[1],
+                             prg->cc_features.do_mix[1],
+                             ras_input, prev_input);
+        return;
+    }
+
+    if (formula_num_inputs(color) == 2 && prg->cc_features.do_multiply[0]
+        && shader_item_is_input(color[0]) && shader_item_is_input(color[2]))
+    {
+        const uint8_t *alpha = prg->cc_features.color_alpha_same ? color : prg->cc_features.c[1];
+        int prev_input = shader_item_input_index(color[0]);
+        int ras_input = shader_item_input_index(color[2]);
+
+        GX_SetNumTevStages(2);
+        gx_set_tev_order(GX_TEVSTAGE0, SHADER_0, prev_input);
+        gx_set_color_formula(GX_TEVSTAGE0, (uint8_t[4]){ SHADER_0, SHADER_0, SHADER_0, color[0] },
+                             true, false, false, prev_input, -1);
+        gx_set_alpha_formula(GX_TEVSTAGE0, (uint8_t[4]){ SHADER_0, SHADER_0, SHADER_0, color[0] },
+                             true, false, false, prev_input, -1);
+
+        gx_set_tev_order(GX_TEVSTAGE1, SHADER_0, ras_input);
+        gx_set_color_formula(GX_TEVSTAGE1, color, false, true, false, ras_input, prev_input);
+        gx_set_alpha_formula(GX_TEVSTAGE1, alpha,
+                             prg->cc_features.do_single[1],
+                             prg->cc_features.do_multiply[1],
+                             prg->cc_features.do_mix[1],
+                             ras_input, prev_input);
+        return;
+    }
+
+    int ras_input = formula_first_input(color);
+    uint8_t texture_item = formula_first_texture(color);
+
+    if (ras_input < 0 && prg->cc_features.opt_alpha)
+        ras_input = formula_first_input(prg->cc_features.c[1]);
+    if (texture_item == SHADER_0 && prg->cc_features.opt_alpha)
+        texture_item = formula_first_texture(prg->cc_features.c[1]);
+
     GX_SetNumTevStages(1);
-    GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-
-    bool hasTex = prg->cc_features.used_textures[0] || prg->cc_features.used_textures[1];
-    bool hasColor = prg->cc_features.num_inputs > 0;
-
-    GX_SetNumChans(prg->cc_features.num_inputs);
-
-    if (hasTex)
-    {
-        GX_SetNumTexGens(prg->cc_features.used_textures[0] + prg->cc_features.used_textures[1]);
-    } else
-    {
-        GX_SetNumTexGens(0);
-    }
-
-    // (d (tevop) ((1.0-c)*a + b*c) + tevbias) * tevscale
-    if (prg->cc_features.do_single[0])
-    {
-        if (hasTex)
-        {
-            GX_SetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_TEXC);
-            GX_SetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_TEXA);
-        }
-        else if (hasColor)
-        {
-            GX_SetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_RASC);
-            GX_SetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_RASA);
-        }
-    }
+    gx_set_tev_order(GX_TEVSTAGE0, texture_item, ras_input);
+    gx_set_color_formula(GX_TEVSTAGE0, color,
+                         prg->cc_features.do_single[0],
+                         prg->cc_features.do_multiply[0],
+                         prg->cc_features.do_mix[0],
+                         ras_input, -1);
+    gx_set_alpha_formula(GX_TEVSTAGE0, prg->cc_features.c[1],
+                         prg->cc_features.do_single[1],
+                         prg->cc_features.do_multiply[1],
+                         prg->cc_features.do_mix[1],
+                         ras_input, -1);
 }
 
 static void update_vtx_desc(struct ShaderProgram *prg)
 {
+    bool has_tex = prg->cc_features.used_textures[0] || prg->cc_features.used_textures[1];
+
     // clear description
     GX_InvVtxCache();
     GX_ClearVtxDesc();
@@ -99,16 +345,17 @@ static void update_vtx_desc(struct ShaderProgram *prg)
     GX_SetVtxDesc(GX_VA_POS, GX_DIRECT);
     GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
     // rgba colours
-    for (int i = 0; i < prg->cc_features.num_inputs; i++) // only seen 0, 1 or 2
+    int num_chans = prg->cc_features.num_inputs > 2 ? 2 : prg->cc_features.num_inputs;
+    for (int i = 0; i < num_chans; i++)
     {
         GX_SetVtxDesc(GX_VA_CLR0 + i, GX_DIRECT);
         GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0 + i, GX_CLR_RGBA, GX_RGBA8, 0);
     }
     // tex coords
-    for (int i = 0; i < prg->cc_features.used_textures[0] + prg->cc_features.used_textures[1]; i++)
+    if (has_tex)
     {
-        GX_SetVtxDesc(GX_VA_TEX0 + i, GX_DIRECT);
-        GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0 + i, GX_TEX_ST, GX_F32, 0);
+        GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
+        GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
     }
 }
 
@@ -332,10 +579,11 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
 {
     bool hasAlpha = shader_program_pool[current_shader].cc_features.opt_alpha;
     bool hasFog = shader_program_pool[current_shader].cc_features.opt_fog;
+    bool hasTex = shader_program_pool[current_shader].cc_features.used_textures[0]
+                  || shader_program_pool[current_shader].cc_features.used_textures[1];
 
     uint8_t num_floats =  shader_program_pool[current_shader].num_floats;
     uint8_t num_inputs = shader_program_pool[current_shader].cc_features.num_inputs;
-    uint8_t num_tex = shader_program_pool[current_shader].cc_features.used_textures[0] + shader_program_pool[current_shader].cc_features.used_textures[1];
 
     // gfx_pc emits 2D rectangles with w == 1
     bool is_2d = (buf_vbo[3] == 1.0f);
@@ -352,8 +600,8 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
     GX_Begin(GX_TRIANGLES, GX_VTXFMT0, 3 * buf_vbo_num_tris);
     {
         uint32_t offset = 0;
-        float s[num_tex];
-        float t[num_tex];
+        float s = 0.0f;
+        float t = 0.0f;
         for (size_t i = 0; i < 3 * buf_vbo_num_tris; i++)
         {
             if (is_2d)
@@ -370,25 +618,28 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
             }
             int vtxOffs = 4;
 
-            for (int j = 0; j < num_tex; j++)
+            if (hasTex)
             {
-                s[j] = buf_vbo[offset + vtxOffs + 0];
-                t[j] = buf_vbo[offset + vtxOffs + 1];
+                s = buf_vbo[offset + vtxOffs + 0];
+                t = buf_vbo[offset + vtxOffs + 1];
                 vtxOffs += 2;
             }
             if (hasFog)
                 vtxOffs += 4; // TODO: same as 3DS
             for (int j = 0; j < num_inputs; j++)
             {
-                GX_Color4u8(float_to_u8(buf_vbo[offset + vtxOffs + 0]),
-                            float_to_u8(buf_vbo[offset + vtxOffs + 1]),
-                            float_to_u8(buf_vbo[offset + vtxOffs + 2]),
-                            hasAlpha ? float_to_u8(buf_vbo[offset + vtxOffs + 3]) : 255);
-                vtxOffs += 4;
+                if (j < 2)
+                {
+                    GX_Color4u8(float_to_u8(buf_vbo[offset + vtxOffs + 0]),
+                                float_to_u8(buf_vbo[offset + vtxOffs + 1]),
+                                float_to_u8(buf_vbo[offset + vtxOffs + 2]),
+                                hasAlpha ? float_to_u8(buf_vbo[offset + vtxOffs + 3]) : 255);
+                }
+                vtxOffs += hasAlpha ? 4 : 3;
             }
-            for (int j = 0; j < num_tex; j++)
+            if (hasTex)
             {
-                GX_TexCoord2f32(s[j], t[j]);
+                GX_TexCoord2f32(s, t);
             }
             offset += num_floats;
         }
