@@ -93,7 +93,7 @@ static void controller_wii_init(void) {
 
 static void controller_wii_read(OSContPad *pad)
 {
-    pad->button = controller_wii_get_held();
+    pad->button |= controller_wii_get_held();
 
     struct expansion_t data;
     WPAD_Expansion(WPAD_CHAN_0, &data);

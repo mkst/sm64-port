@@ -1,5 +1,7 @@
 #ifdef TARGET_GX
 
+#include <stdbool.h>
+
 #include <ogc/pad.h>
 
 #include <ultra64.h>
@@ -18,11 +20,10 @@ static void set_button_mapping(int index, int mask_n64, int mask_gamecube)
     button_mapping[index][1] = mask_n64;
 }
 
-static uint32_t controller_gamecube_get_held()
+static uint32_t controller_gamecube_get_held(const PADStatus *status)
 {
     uint32_t res = 0;
-    PAD_ScanPads();
-    uint32_t kDown = PAD_ButtonsHeld(0);
+    uint32_t kDown = status->button;
 
     for (size_t i = 0; i < sizeof(button_mapping) / sizeof(button_mapping[0]); i++)
     {
@@ -33,8 +34,8 @@ static uint32_t controller_gamecube_get_held()
 
     bool inverted_look = false;
     s8 deadzone = 10;
-    s8 ssx = PAD_SubStickX(0);
-    s8 ssy = PAD_SubStickY(0);
+    s8 ssx = status->substickX;
+    s8 ssy = status->substickY;
     if (ssx > deadzone)
         res |= inverted_look ? L_CBUTTONS : R_CBUTTONS;
     if (ssx < -deadzone)
@@ -47,10 +48,24 @@ static uint32_t controller_gamecube_get_held()
     return res;
 }
 
+static bool controller_gamecube_read_status(PADStatus *status)
+{
+    PADStatus pads[PAD_CHANMAX];
+
+    PAD_Read(pads);
+
+    if (pads[PAD_CHAN0].err != PAD_ERR_NONE) {
+        return false;
+    }
+
+    *status = pads[PAD_CHAN0];
+    return true;
+}
+
 static void controller_gamecube_init(void) {
     PAD_Init();
 
-    uint8_t i;
+    uint8_t i = 0;
 #ifdef __wii__ // wii uses config for wiimote
     set_button_mapping(i++, A_BUTTON,     PAD_BUTTON_A | PAD_BUTTON_Y); // n64 button => configured button
     set_button_mapping(i++, B_BUTTON,     PAD_BUTTON_B | PAD_BUTTON_X);
@@ -78,10 +93,18 @@ static void controller_gamecube_init(void) {
 
 static void controller_gamecube_read(OSContPad *pad)
 {
-    pad->button = controller_gamecube_get_held();
+    PADStatus status;
 
-    pad->stick_x = PAD_StickX(0);
-    pad->stick_y = PAD_StickY(0);
+    if (!controller_gamecube_read_status(&status)) {
+        return;
+    }
+
+    pad->button |= controller_gamecube_get_held(&status);
+
+    if (status.stickX != 0 || status.stickY != 0) {
+        pad->stick_x = status.stickX;
+        pad->stick_y = status.stickY;
+    }
 }
 
 struct ControllerAPI controller_gamecube = {
