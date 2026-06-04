@@ -40,8 +40,9 @@ static unsigned char gp_fifo[DEFAULT_FIFO_SIZE] __attribute__((aligned(32)));
 
 #define GX_NEAR_PLANE 16.0f
 #define GX_FAR_PLANE 24000.0f
+#define GX_DECAL_BIAS 0.001f
 
-static Mtx44 gx_perspective_mtx; // 3D: feeds -w as z, GX divides by real w
+static Mtx44 gx_perspective_mtx; // 3D feeds -w as z, GX divides by real w
 static Mtx44 gx_ortho_mtx;       // 2D/HUD: pass-through of already-NDC coords
 
 static bool gfx_gx_z_is_from_0_to_1(void)
@@ -238,9 +239,13 @@ static void gfx_gx_upload_texture(const uint8_t *rgba32_buf, int width, int heig
     if ((texture_memory_used + texture_size) > TEXTURE_MEMORY_SIZE)
         texture_memory_used = 0; // it'll do for now
 
-    convert_to_rgb5a3(&texture_memory[texture_memory_used], rgba32_buf, width, height);
+    uint16_t *dest = &texture_memory[texture_memory_used];
 
-    GX_InitTexObj(&texture_pool[current_texture], &texture_memory[texture_memory_used], buffer_width, buffer_height, GX_TF_RGB5A3, GX_REPEAT, GX_REPEAT, GX_FALSE);
+    convert_to_rgb5a3(dest, rgba32_buf, width, height);
+
+    DCFlushRange(dest, texture_size * sizeof(uint16_t));
+
+    GX_InitTexObj(&texture_pool[current_texture], dest, buffer_width, buffer_height, GX_TF_RGB5A3, GX_REPEAT, GX_REPEAT, GX_FALSE);
 
     texture_memory_used += texture_size;
 }
@@ -258,6 +263,11 @@ static void gfx_gx_set_sampler_parameters(int tile, bool linear_filter, uint32_t
 
 static bool depth_test_on;
 static bool depth_mask_on;
+static bool zmode_decal_on;
+
+static int vp_x, vp_y, vp_w, vp_h;
+
+static f32 applied_far_z = 1.0f;
 
 static void set_z_mode()
 {
@@ -276,13 +286,24 @@ static void gfx_gx_set_depth_mask(bool z_upd)
     set_z_mode();
 }
 
-static void gfx_gx_set_zmode_decal(UNUSED bool zmode_decal)
+static void gx_issue_viewport(f32 far_z)
 {
+    GX_SetViewport((f32)vp_x, (f32)vp_y, (f32)vp_w, (f32)vp_h, 0.0f, far_z); // near z, far z
+    applied_far_z = far_z;
+}
+
+static void gfx_gx_set_zmode_decal(bool zmode_decal)
+{
+    zmode_decal_on = zmode_decal;
 }
 
 static void gfx_gx_set_viewport(int x, int y, int width, int height)
 {
-    GX_SetViewport(x, y, width, height, 0.0f, 1.0f); // near z, far z
+    vp_x = x;
+    vp_y = y;
+    vp_w = width;
+    vp_h = height;
+    gx_issue_viewport(1.0f);
 }
 
 static void gfx_gx_set_scissor(int x, int y, int width, int height)
@@ -323,6 +344,10 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
         GX_LoadProjectionMtx(gx_ortho_mtx, GX_ORTHOGRAPHIC);
     else
         GX_LoadProjectionMtx(gx_perspective_mtx, GX_PERSPECTIVE);
+
+    const f32 want_far_z = (!is_2d && zmode_decal_on) ? (1.0f - GX_DECAL_BIAS) : 1.0f;
+    if (want_far_z != applied_far_z)
+        gx_issue_viewport(want_far_z);
 
     GX_Begin(GX_TRIANGLES, GX_VTXFMT0, 3 * buf_vbo_num_tris);
     {
@@ -378,7 +403,11 @@ static void gx_setup_efb(void)
 
     GX_SetCopyClear((GXColor){ 0, 0, 0, 0xff }, GX_MAX_Z24);
 
-    GX_SetViewport(0.0f, 0.0f, rmode->fbWidth, rmode->efbHeight, 0.0f, 1.0f);
+    vp_x = 0;
+    vp_y = 0;
+    vp_w = rmode->fbWidth;
+    vp_h = rmode->efbHeight;
+    gx_issue_viewport(1.0f); // plain (0, 1) range
     GX_SetScissor(0, 0, rmode->fbWidth, rmode->efbHeight);
     GX_SetDispCopyYScale((f32)rmode->xfbHeight / (f32)rmode->efbHeight);
     GX_SetDispCopySrc(0, 0, rmode->fbWidth, rmode->efbHeight);
@@ -446,6 +475,8 @@ static void gfx_gx_on_resize(void)
 static void gfx_gx_start_frame(void)
 {
     GX_SetCopyClear((GXColor){ 0, 0, 0, 0xff }, GX_MAX_Z24);
+
+    GX_InvalidateTexAll();
 }
 
 static void gfx_gx_end_frame(void)
