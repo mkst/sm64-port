@@ -85,7 +85,7 @@ static void update_tev(struct ShaderProgram *prg)
         else if (hasColor)
         {
             GX_SetTevColorIn(GX_TEVSTAGE0, GX_CC_ZERO, GX_CC_ZERO, GX_CC_ZERO, GX_CC_RASC);
-            GX_SetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CC_ZERO, GX_CA_ZERO, GX_CC_RASA);
+            GX_SetTevAlphaIn(GX_TEVSTAGE0, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_RASA);
         }
     }
 }
