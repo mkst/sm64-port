@@ -578,7 +578,9 @@ static void gfx_gx_set_viewport(int x, int y, int width, int height)
 
 static void gfx_gx_set_scissor(int x, int y, int width, int height)
 {
-    GX_SetScissor(x, y, width, height);
+    // OpenGL has a bottom left origin, GX has top right
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+    GX_SetScissor(x, rmode->efbHeight - y - height, width, height);
 }
 
 static void gfx_gx_set_use_alpha(bool use_alpha)
