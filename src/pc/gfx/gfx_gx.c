@@ -441,6 +441,7 @@ static void gx_build_projection(void)
     gx_ortho_mtx[0][0] = 1.0f;
     gx_ortho_mtx[1][1] = 1.0f;
     gx_ortho_mtx[2][2] = 1.0f;
+    gx_ortho_mtx[2][3] = -1.0f; // z [0,1] -> [-1,0]
     gx_ortho_mtx[3][3] = 1.0f;
 }
 
@@ -477,6 +478,7 @@ static void gfx_gx_start_frame(void)
     GX_SetCopyClear((GXColor){ 0, 0, 0, 0xff }, GX_MAX_Z24);
 
     GX_InvalidateTexAll();
+    set_z_mode();
 }
 
 static void gfx_gx_end_frame(void)
