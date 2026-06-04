@@ -40,7 +40,8 @@ static unsigned char gp_fifo[DEFAULT_FIFO_SIZE] __attribute__((aligned(32)));
 
 #define GX_NEAR_PLANE 16.0f
 #define GX_FAR_PLANE 24000.0f
-#define GX_DECAL_BIAS 0.001f
+#define GX_DECAL_BIAS 0.0001f
+#define GX_TEXTURE_EDGE_ALPHA_THRESHOLD 76
 
 static Mtx44 gx_perspective_mtx; // 3D feeds -w as z, GX divides by real w
 static Mtx44 gx_ortho_mtx;       // 2D/HUD: pass-through of already-NDC coords
@@ -366,6 +367,18 @@ static void gfx_gx_load_shader(struct ShaderProgram *new_prg)
     update_vtx_desc(new_prg);
 
     update_tev(new_prg);
+
+    if (new_prg->cc_features.opt_texture_edge && new_prg->cc_features.opt_alpha)
+    {
+        // Reject alpha before Z otherwise invisible billboards hide distant shadows
+        GX_SetAlphaCompare(GX_GREATER, GX_TEXTURE_EDGE_ALPHA_THRESHOLD, GX_AOP_AND, GX_ALWAYS, 0);
+        GX_SetZCompLoc(GX_FALSE);
+    }
+    else
+    {
+        GX_SetAlphaCompare(GX_ALWAYS, 0, GX_AOP_AND, GX_ALWAYS, 0);
+        GX_SetZCompLoc(GX_TRUE);
+    }
 }
 
 static void gfx_gx_unload_shader(UNUSED struct ShaderProgram *old_prg)
