@@ -505,7 +505,17 @@ static void gfx_gx_upload_texture(const uint8_t *rgba32_buf, int width, int heig
 
     DCFlushRange(dest, texture_size * sizeof(uint16_t));
 
-    GX_InitTexObj(&texture_pool[current_texture], dest, buffer_width, buffer_height, GX_TF_RGB5A3, GX_REPEAT, GX_REPEAT, GX_FALSE);
+    // GX_InitTexObj resets wrap/filter
+    // Please preserve the sampler state gfx_pc configured just before this
+    // It did hard work, okay.
+    GXTexObj *obj = &texture_pool[current_texture];
+    u8 wrap_s = GX_GetTexObjWrapS(obj);
+    u8 wrap_t = GX_GetTexObjWrapT(obj);
+    u8 min_filt, mag_filt;
+    GX_GetTexObjFilterMode(obj, &min_filt, &mag_filt);
+
+    GX_InitTexObj(obj, dest, buffer_width, buffer_height, GX_TF_RGB5A3, wrap_s, wrap_t, GX_FALSE);
+    GX_InitTexObjFilterMode(obj, min_filt, mag_filt);
 
     texture_memory_used += texture_size;
 }
@@ -597,6 +607,12 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
 
     uint8_t num_floats =  shader_program_pool[current_shader].num_floats;
     uint8_t num_inputs = shader_program_pool[current_shader].cc_features.num_inputs;
+
+    // Reload here so every draw uses the fully-initialized texobj
+    if (shader_program_pool[current_shader].cc_features.used_textures[0])
+        GX_LoadTexObj(&texture_pool[texture_units[0]], GX_TEXMAP0);
+    if (shader_program_pool[current_shader].cc_features.used_textures[1])
+        GX_LoadTexObj(&texture_pool[texture_units[1]], GX_TEXMAP1);
 
     // gfx_pc emits 2D rectangles with w == 1
     bool is_2d = (buf_vbo[3] == 1.0f);
