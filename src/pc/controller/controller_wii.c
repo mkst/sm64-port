@@ -23,7 +23,7 @@
 
 #include "../configfile.h"
 
-#define N64_STICK_MAX 80
+#define PORT_STICK_MAX 127
 
 static int button_mapping[9][2];
 
@@ -35,11 +35,11 @@ static void set_button_mapping(int index, int mask_n64, int mask_wii)
 
 static s8 clamp_stick_axis(int value)
 {
-    if (value > N64_STICK_MAX) {
-        return N64_STICK_MAX;
+    if (value > PORT_STICK_MAX) {
+        return PORT_STICK_MAX;
     }
-    if (value < -N64_STICK_MAX) {
-        return -N64_STICK_MAX;
+    if (value < -PORT_STICK_MAX) {
+        return -PORT_STICK_MAX;
     }
     return value;
 }
@@ -53,7 +53,7 @@ static s8 scale_joystick_axis(int pos, int center, int min, int max)
         return 0;
     }
 
-    return clamp_stick_axis(offset * N64_STICK_MAX / range);
+    return clamp_stick_axis(offset * PORT_STICK_MAX / range);
 }
 
 static uint32_t controller_wii_get_held(void)
