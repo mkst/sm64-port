@@ -38,6 +38,7 @@ struct ConfigOption {
  *Config options and default values
  */
 bool configFullscreen            = false;
+bool config60Fps                 = true; // 60fps interpolation; set "60fps false" in the config to disable
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -88,6 +89,7 @@ unsigned int configKeyStickRight = 0;
 
 static const struct ConfigOption options[] = {
     {.name = "fullscreen",     .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
+    {.name = "60fps",          .type = CONFIG_TYPE_BOOL, .boolValue = &config60Fps},
     {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},

@@ -2,6 +2,7 @@
 #define CONFIGFILE_H
 
 extern bool         configFullscreen;
+extern bool         config60Fps;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;
