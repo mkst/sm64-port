@@ -5,33 +5,24 @@ A prior copy of the game is required to extract the assets.
 
 ## Known Issues
 
-This is a work-in-progress, most things are broken. It *does* run on a real hardware.
-
-**Completely Broken:**
- - The Z buffer
- - Only implemented basic color/texture shaders
-
-**Somewhat Broken:**
- - Audio
-
-**Working:**
- - Controls
- - Saving
+This is a work-in-progress, while everything appears to be working fine and running at full speed, the game hasn't
+been fully tested yet, although I do assume you could reasonably play through the entire game in the state that it's currently in.
 
 ## Building
 
 Successful compilation will result in a `boot.dol` being created in `build/VERSION_GX/boot.dol` where `VERSION` is one of `us`, `eu`, `jp` or `sh`, and `GX` is either `wii` or `cube`.
 
-Place the `boot.dol` and `meta.xml` from `build/us/wii` in a directory called `/apps/sm64` on your SDCARD and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
+Place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_GX/boot.dol` in a directory called `/apps/sm64` on your SD card and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
 
 **Supported Build Methods:**
 
-  - [Docker](#docker)
-  - [Linux / WSL (Ubuntu 18.04 or higher)](#linux--wsl-ubuntu)
-  - [Windows (MSYS2)](#windows-msys2)
+- [Docker](#docker)
+- [Linux / WSL (Ubuntu >= 18.04)](#linux--wsl-ubuntu)
+- [Windows (MSYS2)](#windows-msys2)
 
 ### Docker
-
+(Note this way of building did not work for me (PalindromicBreadLoaf), however both of the other two did. However, it is
+possible that I just messed up.)
 The following assumes a basic understanding of [Docker](https://www.docker.com/); if you do not belong to the `docker` group, prefix those commands with `sudo`.
 
 **Clone Repository:**
@@ -61,10 +52,11 @@ docker run --rm -v $(pwd):/sm64 markstreet/sm64:wii make VERSION=us --jobs 4 # L
 
 ### Linux / WSL (Ubuntu)
 
-Tested successfully on **Ubuntu 18.04** and **20.04**. Does not work on **16.04**.
+This works on **Ubuntu >= 18.04**\
+This can be done on any Linux distro, just substitute the packages for your distro's equivalent.
 
 ```sh
-sudo su -
+sudo -i
 
 apt-get update && \
     apt-get install -y \
@@ -83,7 +75,7 @@ wget https://github.com/devkitPro/pacman/releases/download/v1.0.2/devkitpro-pacm
   apt install -y ./devkitpro.deb && \
   rm devkitpro.deb
 
-dkp-pacman -Syu wii-dev --noconfirm
+dkp-pacman -Syu wii-dev gamecube-dev --noconfirm
 # if this ^^ fails with error about archive format, use a VPN to get yourself out of the USA and then try again.
 
 exit
@@ -94,7 +86,8 @@ git clone https://github.com/mkst/sm64-port.git --branch wii
 
 cd sm64-port
 
-# go and copy the baserom to c:\temp (create that directory in Windows Explorer)
+# Go and copy the baserom to c:\temp (create that directory in Windows Explorer)
+# If you are running Linux natively, just copy the baserom.us.z64 file to the current directory. No need to create anything.
 cp /mnt/c/temp/baserom.us.z64 ./
 
 sudo chmod 644 ./baserom.us.z64
@@ -110,7 +103,7 @@ make -j4
 
 WSL is the preferred route, but you can also use MSYS2 (MINGW64) to compile.
 
-For each instruction copy and paste the contents into the **MING64** console.
+For each instruction copy and paste the contents into the **MINGW64** console.
 
 **Get MSYS2:**
 

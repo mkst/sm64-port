@@ -26,9 +26,7 @@ static struct ControllerAPI *controller_implementations[] = {
 #ifdef __wii__
     &controller_wii,
 #endif
-#ifdef __gamecube__
     &controller_gamecube,
-#endif
 #else
     #if defined(_WIN32) || defined(_WIN64)
         &controller_xinput,

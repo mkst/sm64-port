@@ -19,4 +19,6 @@
 
 extern struct GfxWindowManagerAPI gfx_gx_wm_api;
 
+GXRModeObj *gfx_gx_wm_get_rmode(void);
+
 #endif
