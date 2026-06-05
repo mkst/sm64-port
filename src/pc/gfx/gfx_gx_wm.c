@@ -3,6 +3,7 @@
 #include "macros.h" // for UNUSED
 
 #include "gfx_gx_wm.h"
+#include "../configfile.h" // for config60Fps
 
 static GXRModeObj *rmode;
 static void *framebuffer[2];
@@ -81,8 +82,11 @@ static void gfx_gx_wm_swap_buffers_begin(void)
         VIDEO_WaitVSync();
     }
 
-    // 30FPS hack
-    VIDEO_WaitVSync();
+    // Hold each rendered frame for an extra field so the 30Hz game logic maps to a 30Hz display
+    // Skipped at 60fps
+    if (!config60Fps) {
+        VIDEO_WaitVSync();
+    }
 }
 
 static void gfx_gx_wm_swap_buffers_end(void)
