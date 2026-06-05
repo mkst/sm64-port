@@ -884,6 +884,7 @@ $(BUILD_DIR)/$(TARGET).elf: $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES)
 %.dol: %.elf
 	elf2dol $< $(BUILD_DIR)/boot.dol
 	cp wii/meta.xml $(BUILD_DIR)/meta.xml
+	cp wii/icon.png $(BUILD_DIR)/icon.png
 
 else
 $(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(GODDARD_O_FILES)
