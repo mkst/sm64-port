@@ -58,6 +58,10 @@ struct TextureHashmapNode {
 
     const uint8_t *texture_addr;
     uint8_t fmt, siz;
+    uint32_t size_bytes;
+    uint32_t line_size_bytes;
+    uint32_t texture_hash;
+    uint32_t palette_hash;
 
     uint32_t texture_id;
     uint8_t cms, cmt;
@@ -158,6 +162,20 @@ static size_t buf_vbo_num_tris;
 static struct GfxWindowManagerAPI *gfx_wapi;
 static struct GfxRenderingAPI *gfx_rapi;
 
+static uint32_t gfx_hash_bytes(const uint8_t *data, uint32_t size) {
+    uint32_t hash = 2166136261U;
+
+    if (data == NULL) {
+        return hash;
+    }
+
+    for (uint32_t i = 0; i < size; i++) {
+        hash ^= data[i];
+        hash *= 16777619U;
+    }
+    return hash;
+}
+
 #include <time.h>
 static unsigned long get_time(void) {
     struct timespec ts;
@@ -253,12 +271,17 @@ static struct ColorCombiner *gfx_lookup_or_create_color_combiner(uint32_t cc_id)
     return prev_combiner = comb;
 }
 
-static bool gfx_texture_cache_lookup(int tile, struct TextureHashmapNode **n, const uint8_t *orig_addr, uint32_t fmt, uint32_t siz) {
+static bool gfx_texture_cache_lookup(int tile, struct TextureHashmapNode **n, const uint8_t *orig_addr,
+                                     uint32_t fmt, uint32_t siz, uint32_t size_bytes,
+                                     uint32_t line_size_bytes, uint32_t texture_hash,
+                                     uint32_t palette_hash) {
     size_t hash = (uintptr_t)orig_addr;
     hash = (hash >> 5) & 0x3ff;
     struct TextureHashmapNode **node = &gfx_texture_cache.hashmap[hash];
     while (*node != NULL && *node - gfx_texture_cache.pool < (int)gfx_texture_cache.pool_pos) {
-        if ((*node)->texture_addr == orig_addr && (*node)->fmt == fmt && (*node)->siz == siz) {
+        if ((*node)->texture_addr == orig_addr && (*node)->fmt == fmt && (*node)->siz == siz
+            && (*node)->size_bytes == size_bytes && (*node)->line_size_bytes == line_size_bytes
+            && (*node)->texture_hash == texture_hash && (*node)->palette_hash == palette_hash) {
             gfx_rapi->select_texture(tile, (*node)->texture_id);
             *n = *node;
             return true;
@@ -268,6 +291,11 @@ static bool gfx_texture_cache_lookup(int tile, struct TextureHashmapNode **n, co
     if (gfx_texture_cache.pool_pos == sizeof(gfx_texture_cache.pool) / sizeof(struct TextureHashmapNode)) {
         // Pool is full. We just invalidate everything and start over.
         gfx_texture_cache.pool_pos = 0;
+        memset(gfx_texture_cache.hashmap, 0, sizeof(gfx_texture_cache.hashmap));
+        rdp.textures_changed[0] = true;
+        rdp.textures_changed[1] = true;
+        rendering_state.textures[0] = NULL;
+        rendering_state.textures[1] = NULL;
         node = &gfx_texture_cache.hashmap[hash];
         //puts("Clearing texture cache");
     }
@@ -284,6 +312,10 @@ static bool gfx_texture_cache_lookup(int tile, struct TextureHashmapNode **n, co
     (*node)->texture_addr = orig_addr;
     (*node)->fmt = fmt;
     (*node)->siz = siz;
+    (*node)->size_bytes = size_bytes;
+    (*node)->line_size_bytes = line_size_bytes;
+    (*node)->texture_hash = texture_hash;
+    (*node)->palette_hash = palette_hash;
     *n = *node;
     return false;
 }
@@ -471,8 +503,18 @@ static void import_texture_ci8(int tile) {
 static void import_texture(int tile) {
     uint8_t fmt = rdp.texture_tile.fmt;
     uint8_t siz = rdp.texture_tile.siz;
+    uint32_t size_bytes = rdp.loaded_texture[tile].size_bytes;
+    uint32_t line_size_bytes = rdp.texture_tile.line_size_bytes;
+    uint32_t texture_hash = gfx_hash_bytes(rdp.loaded_texture[tile].addr, size_bytes);
+    uint32_t palette_hash = 0;
 
-    if (gfx_texture_cache_lookup(tile, &rendering_state.textures[tile], rdp.loaded_texture[tile].addr, fmt, siz)) {
+    if (fmt == G_IM_FMT_CI) {
+        uint32_t palette_size = (siz == G_IM_SIZ_4b) ? 16 * 2 : 256 * 2;
+        palette_hash = gfx_hash_bytes(rdp.palette, palette_size);
+    }
+
+    if (gfx_texture_cache_lookup(tile, &rendering_state.textures[tile], rdp.loaded_texture[tile].addr,
+                                 fmt, siz, size_bytes, line_size_bytes, texture_hash, palette_hash)) {
         return;
     }
 
@@ -825,7 +867,7 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
 
     for (int i = 0; i < 2; i++) {
         if (used_textures[i]) {
-            if (rdp.textures_changed[i]) {
+            if (rdp.textures_changed[i] || rendering_state.textures[i] == NULL) {
                 gfx_flush();
                 import_texture(i);
                 rdp.textures_changed[i] = false;

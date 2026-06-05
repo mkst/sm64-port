@@ -1,6 +1,7 @@
 #ifdef TARGET_GX
 
 #include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <ultra64.h>
@@ -12,7 +13,6 @@
 
 #define TEXTURE_POOL_SIZE 4096
 #define DEFAULT_FIFO_SIZE 256 * 1024
-#define TEXTURE_MEMORY_SIZE 2 * 1024 * 1024
 
 // shaders
 struct ShaderProgram {
@@ -27,14 +27,19 @@ static uint8_t shader_program_pool_size;
 static uint8_t current_shader;
 
 // textures
-static uint16_t texture_index;
-static uint8_t texture_units[2];
-static uint16_t current_texture;
+static uint32_t texture_index;
+static uint32_t texture_units[2];
+static uint32_t current_texture;
 
 static GXTexObj texture_pool[TEXTURE_POOL_SIZE];
 
-static uint16_t texture_memory[TEXTURE_MEMORY_SIZE] __attribute__((aligned(32)));
-static size_t texture_memory_used;
+struct TextureStorage {
+    uint16_t *data;
+};
+
+static struct TextureStorage texture_storage[TEXTURE_POOL_SIZE];
+static uint16_t *deferred_texture_frees[TEXTURE_POOL_SIZE];
+static size_t deferred_texture_free_count;
 
 static unsigned char gp_fifo[DEFAULT_FIFO_SIZE] __attribute__((aligned(32)));
 
@@ -442,10 +447,11 @@ static uint32_t gfx_gx_new_texture(void)
 
 static void gfx_gx_select_texture(int tile, uint32_t texture_id)
 {
-    GX_LoadTexObj(&texture_pool[texture_id], tile == 0 ? GX_TEXMAP0 : GX_TEXMAP1);
-
     current_texture = texture_id;
     texture_units[tile] = texture_id;
+
+    if (texture_storage[texture_id].data != NULL)
+        GX_LoadTexObj(&texture_pool[texture_id], tile == 0 ? GX_TEXMAP0 : GX_TEXMAP1);
 }
 
 // from https://github.com/camthesaxman/neverball-wii/blob/master/share/wiigl.c
@@ -454,37 +460,65 @@ static uint32_t round_up(uint32_t number, uint32_t multiple)
     return ((number + multiple - 1) / multiple) * multiple;
 }
 
-static void convert_to_rgb5a3(uint16_t *dest, const uint8_t *data, uint32_t width, uint32_t height)
+// GX can still be reading old texture memory after commands enter the FIFO
+static void gx_free_deferred_texture_data(void)
 {
-    for (uint32_t x = 0; x < width; x++)
+    for (size_t i = 0; i < deferred_texture_free_count; i++)
+    {
+        free(deferred_texture_frees[i]);
+    }
+    deferred_texture_free_count = 0;
+}
+
+static void gx_defer_texture_free(uint16_t *data)
+{
+    if (data == NULL)
+        return;
+
+    if (deferred_texture_free_count == TEXTURE_POOL_SIZE)
+    {
+        GX_DrawDone();
+        gx_free_deferred_texture_data();
+    }
+
+    deferred_texture_frees[deferred_texture_free_count++] = data;
+}
+
+static void convert_to_rgb5a3(uint16_t *dest, const uint8_t *data, uint32_t width, uint32_t height,
+                              uint32_t buffer_width, uint32_t buffer_height)
+{
+    for (uint32_t x = 0; x < buffer_width; x++)
     {
         uint32_t blockX = x / 4;
         uint32_t remX = x % 4;
+        uint32_t srcX = MIN(x, width - 1);
 
-        for (uint32_t y = 0; y < height; y++)
+        for (uint32_t y = 0; y < buffer_height; y++)
         {
             uint8_t r, g, b, a;
             uint16_t pixel;
+            uint32_t srcY = MIN(y, height - 1);
+            uint32_t srcIndex = 4 * (srcX + srcY * width);
 
-            if (data[4 * (x + y * width) + 3] == 255)
+            if (data[srcIndex + 3] == 255)
             {
-                r = (data[4 * (x + y * width) + 0] >> 3) & 31;
-                g = (data[4 * (x + y * width) + 1] >> 3) & 31;
-                b = (data[4 * (x + y * width) + 2] >> 3) & 31;
+                r = (data[srcIndex + 0] >> 3) & 31;
+                g = (data[srcIndex + 1] >> 3) & 31;
+                b = (data[srcIndex + 2] >> 3) & 31;
                 pixel = (1 << 15) | (r << 10) | (g << 5) | b;
             }
             else
             {
-                r = (data[4 * (x + y * width) + 0] >> 4) & 15;
-                g = (data[4 * (x + y * width) + 1] >> 4) & 15;
-                b = (data[4 * (x + y * width) + 2] >> 4) & 15;
-                a = (data[4 * (x + y * width) + 3] >> 5) & 7;
+                r = (data[srcIndex + 0] >> 4) & 15;
+                g = (data[srcIndex + 1] >> 4) & 15;
+                b = (data[srcIndex + 2] >> 4) & 15;
+                a = (data[srcIndex + 3] >> 5) & 7;
                 pixel = (a << 12) | (r << 8) | (g << 4) | b;
             }
 
             uint32_t blockY = y / 4;
             uint32_t remY = y % 4;
-            uint32_t index = 16 * (blockX + blockY * width / 4) + (remY * 4 + remX);
+            uint32_t index = 16 * (blockX + blockY * buffer_width / 4) + (remY * 4 + remX);
             dest[index] = pixel;
         }
     }
@@ -494,16 +528,21 @@ static void gfx_gx_upload_texture(const uint8_t *rgba32_buf, int width, int heig
 {
     uint32_t buffer_width = round_up(width, 4);
     uint32_t buffer_height = round_up(height, 4);
-    uint32_t texture_size = buffer_width * buffer_height;
+    size_t texture_size = (size_t)buffer_width * buffer_height * sizeof(uint16_t);
 
-    if ((texture_memory_used + texture_size) > TEXTURE_MEMORY_SIZE)
-        texture_memory_used = 0; // it'll do for now
+    uint16_t *dest = memalign(32, texture_size);
+    if (dest == NULL)
+    {
+        GX_DrawDone();
+        gx_free_deferred_texture_data();
+        dest = memalign(32, texture_size);
+        if (dest == NULL)
+            return;
+    }
 
-    uint16_t *dest = &texture_memory[texture_memory_used];
+    convert_to_rgb5a3(dest, rgba32_buf, width, height, buffer_width, buffer_height);
 
-    convert_to_rgb5a3(dest, rgba32_buf, width, height);
-
-    DCFlushRange(dest, texture_size * sizeof(uint16_t));
+    DCFlushRange(dest, texture_size);
 
     // GX_InitTexObj resets wrap/filter
     // Please preserve the sampler state gfx_pc configured just before this
@@ -514,10 +553,11 @@ static void gfx_gx_upload_texture(const uint8_t *rgba32_buf, int width, int heig
     u8 min_filt, mag_filt;
     GX_GetTexObjFilterMode(obj, &min_filt, &mag_filt);
 
-    GX_InitTexObj(obj, dest, buffer_width, buffer_height, GX_TF_RGB5A3, wrap_s, wrap_t, GX_FALSE);
-    GX_InitTexObjFilterMode(obj, min_filt, mag_filt);
+    gx_defer_texture_free(texture_storage[current_texture].data);
+    texture_storage[current_texture].data = dest;
 
-    texture_memory_used += texture_size;
+    GX_InitTexObj(obj, dest, width, height, GX_TF_RGB5A3, wrap_s, wrap_t, GX_FALSE);
+    GX_InitTexObjFilterMode(obj, min_filt, mag_filt);
 }
 
 static uint32_t gfx_cm_to_gx(uint32_t val)
@@ -579,6 +619,7 @@ static void gfx_gx_set_viewport(int x, int y, int width, int height)
 static void gfx_gx_set_scissor(int x, int y, int width, int height)
 {
     // OpenGL has a bottom left origin, GX has top right
+    // This took me hours to find out
     GXRModeObj *rmode = gfx_gx_wm_get_rmode();
     GX_SetScissor(x, rmode->efbHeight - y - height, width, height);
 }
@@ -611,9 +652,11 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
     uint8_t num_inputs = shader_program_pool[current_shader].cc_features.num_inputs;
 
     // Reload here so every draw uses the fully-initialized texobj
-    if (shader_program_pool[current_shader].cc_features.used_textures[0])
+    if (shader_program_pool[current_shader].cc_features.used_textures[0]
+        && texture_storage[texture_units[0]].data != NULL)
         GX_LoadTexObj(&texture_pool[texture_units[0]], GX_TEXMAP0);
-    if (shader_program_pool[current_shader].cc_features.used_textures[1])
+    if (shader_program_pool[current_shader].cc_features.used_textures[1]
+        && texture_storage[texture_units[1]].data != NULL)
         GX_LoadTexObj(&texture_pool[texture_units[1]], GX_TEXMAP1);
 
     // gfx_pc emits 2D rectangles with w == 1
@@ -705,7 +748,6 @@ static void gx_setup_efb(void)
     GX_SetDispCopyGamma(GX_GM_1_0);
 }
 
-// Builds the two projection matrices used by gfx_gx_draw_triangles
 static void gx_build_projection(void)
 {
     const f32 n = GX_NEAR_PLANE;
@@ -766,6 +808,7 @@ static void gfx_gx_start_frame(void)
 static void gfx_gx_end_frame(void)
 {
     GX_DrawDone();
+    gx_free_deferred_texture_data();
 
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
     GX_SetColorUpdate(GX_TRUE);
