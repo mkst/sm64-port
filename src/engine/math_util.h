@@ -71,4 +71,8 @@ void spline_get_weights(Vec4f result, f32 t, UNUSED s32 c);
 void anim_spline_init(Vec4s *keyFrames);
 s32 anim_spline_poll(Vec3f result);
 
+// 60fps interpolation helpers (defined in rendering_graph_node.c)
+void interpolate_vectors(Vec3f res, Vec3f a, Vec3f b);
+void interpolate_vectors_s16(Vec3s res, Vec3s a, Vec3s b);
+
 #endif // MATH_UTIL_H
