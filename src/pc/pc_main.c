@@ -21,6 +21,9 @@
 #ifdef TARGET_GX
 #include "gfx/gfx_gx_wm.h"
 #include "gfx/gfx_gx.h"
+#ifdef __wii__
+#include "wii_shutdown.h"
+#endif
 #endif
 
 #include "audio/audio_api.h"
@@ -261,8 +264,14 @@ void main_func(void) {
     inited = 1;
 #else
     inited = 1;
+#if defined(TARGET_GX) && defined(__wii__)
+    wii_shutdown_init(save_config);
+#endif
     while (1) {
         wm_api->main_loop(produce_one_frame);
+#if defined(TARGET_GX) && defined(__wii__)
+        wii_shutdown_poll();
+#endif
     }
 #endif
 }
