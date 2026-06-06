@@ -2749,6 +2749,14 @@ static void render_pause_gx_config(void) {
     }
 }
 
+// Small prompt on the pause screen advertising the options menu
+static void render_pause_gx_hint(void) {
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+    gx_print_ascii(18, 16, "Z: OPTIONS");
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+}
+
 static bool gx_config_menu_update(void) {
     if (sGxConfigOpen) {
         render_pause_gx_config();
@@ -2801,6 +2809,10 @@ s16 render_pause_courses_and_castle(void) {
                 render_pause_course_options(99, 93, &gDialogLineNum, 15);
             }
 
+#ifdef TARGET_GX
+            render_pause_gx_hint();
+#endif
+
 #ifdef VERSION_EU
             if (gPlayer3Controller->buttonPressed & (A_BUTTON | Z_TRIG | START_BUTTON))
 #else
@@ -2830,6 +2842,10 @@ s16 render_pause_courses_and_castle(void) {
             print_hud_pause_colorful_str();
             render_pause_castle_menu_box(160, 143);
             render_pause_castle_main_strings(104, 60);
+
+#ifdef TARGET_GX
+            render_pause_gx_hint();
+#endif
 
 #ifdef VERSION_EU
             if (gPlayer3Controller->buttonPressed & (A_BUTTON | Z_TRIG | START_BUTTON))
