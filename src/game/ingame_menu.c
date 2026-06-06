@@ -2660,17 +2660,23 @@ enum GxConfigRow {
     GX_CFG_240P,
     GX_CFG_ANTIALIAS,
     GX_CFG_60FPS,
+    GX_CFG_INVERT_CAM,
     GX_CFG_SAVE_QUIT,
     GX_CFG_BACK,
     GX_CFG_COUNT
 };
 
+// The first GX_CFG_NUM_TOGGLES rows are on/off toggles backed by sGxConfigToggle.
+#define GX_CFG_NUM_TOGGLES 4
+
 static s8 sGxConfigOpen = 0;
 static s8 sGxConfigSel = 1;
 
-static bool *const sGxConfigToggle[3] = { &config240p, &configAntialias, &config60Fps };
+static bool *const sGxConfigToggle[GX_CFG_NUM_TOGGLES] = {
+    &config240p, &configAntialias, &config60Fps, &configInvertCamera
+};
 static const char *const sGxConfigLabel[GX_CFG_COUNT] = {
-    "240P", "ANTIALIAS", "60FPS", "SAVE AND QUIT", "BACK"
+    "240P", "ANTIALIAS", "60FPS", "INVERT CAMERA", "SAVE AND QUIT", "BACK"
 };
 
 // Convert an ASCII string into the dialog font's glyph encoding
@@ -2696,6 +2702,8 @@ static void render_pause_gx_config(void) {
     const s16 x = 56;
     const s16 yTop = 172;
     const s16 spacing = 16;
+    const s16 labelX = x + 12;  // left edge of each option label
+    const s16 valueX = x + 144; // left edge of the ON/OFF column
 
     handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, GX_CFG_COUNT);
 
@@ -2707,9 +2715,9 @@ static void render_pause_gx_config(void) {
     gx_print_ascii(x, yTop, "GX OPTIONS");
     for (int i = 0; i < GX_CFG_COUNT; i++) {
         s16 ry = yTop - 28 - i * spacing;
-        gx_print_ascii(x + 12, ry, sGxConfigLabel[i]);
-        if (i < 3) {
-            gx_print_ascii(x + 108, ry, *sGxConfigToggle[i] ? "ON" : "OFF");
+        gx_print_ascii(labelX, ry, sGxConfigLabel[i]);
+        if (i < GX_CFG_NUM_TOGGLES) {
+            gx_print_ascii(valueX, ry, *sGxConfigToggle[i] ? "ON" : "OFF");
         }
     }
     gx_print_ascii(40, yTop - 28 - GX_CFG_COUNT * spacing - 6, "RESTART TO APPLY CHANGES");
@@ -2728,6 +2736,7 @@ static void render_pause_gx_config(void) {
             case GX_CFG_240P:
             case GX_CFG_ANTIALIAS:
             case GX_CFG_60FPS:
+            case GX_CFG_INVERT_CAM:
                 *sGxConfigToggle[sGxConfigSel - 1] = !*sGxConfigToggle[sGxConfigSel - 1];
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
                 break;

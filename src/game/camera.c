@@ -28,8 +28,18 @@
 #include "paintings.h"
 #include "engine/graph_node.h"
 #include "level_table.h"
+#include "pc/configfile.h"
 
 #define CBUTTON_MASK (U_CBUTTONS | D_CBUTTONS | L_CBUTTONS | R_CBUTTONS)
+
+// Invert camera controls
+static void swap_camera_lr_cbuttons(u16 *buttons) {
+    if ((*buttons & (L_CBUTTONS | R_CBUTTONS)) == L_CBUTTONS) {
+        *buttons = (*buttons & ~L_CBUTTONS) | R_CBUTTONS;
+    } else if ((*buttons & (L_CBUTTONS | R_CBUTTONS)) == R_CBUTTONS) {
+        *buttons = (*buttons & ~R_CBUTTONS) | L_CBUTTONS;
+    }
+}
 
 /**
  * @file camera.c
@@ -3013,6 +3023,12 @@ void update_camera(struct Camera *c) {
     UNUSED u8 unused[24];
 
     gCamera = c;
+
+    if (configInvertCamera) {
+        swap_camera_lr_cbuttons(&gPlayer1Controller->buttonDown);
+        swap_camera_lr_cbuttons(&gPlayer1Controller->buttonPressed);
+    }
+
     update_camera_hud_status(c);
     if (c->cutscene == 0) {
         // Only process R_TRIG if 'fixed' is not selected in the menu
@@ -3200,6 +3216,12 @@ void update_camera(struct Camera *c) {
     update_lakitu(c);
 
     gLakituState.lastFrameAction = sMarioCamState->action;
+
+    // Restore the C-buttons
+    if (configInvertCamera) {
+        swap_camera_lr_cbuttons(&gPlayer1Controller->buttonDown);
+        swap_camera_lr_cbuttons(&gPlayer1Controller->buttonPressed);
+    }
 }
 
 /**
