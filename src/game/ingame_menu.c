@@ -2664,24 +2664,25 @@ enum GxConfigRow {
     GX_CFG_INVERT_CAM,
     GX_CFG_RUMBLE,
     GX_CFG_FOG,
+    GX_CFG_FORCE_NEAREST,
     GX_CFG_SAVE_QUIT,
     GX_CFG_BACK,
     GX_CFG_COUNT
 };
 
 // The first GX_CFG_NUM_TOGGLES rows are on/off toggles backed by sGxConfigToggle.
-#define GX_CFG_NUM_TOGGLES 6
+#define GX_CFG_NUM_TOGGLES 7
 
 static s8 sGxConfigOpen = 0;
 static s8 sGxConfigSel = 1;
 
 static bool *const sGxConfigToggle[GX_CFG_NUM_TOGGLES] = {
     &config240p, &configAntialias, &config60Fps, &configInvertCamera, &configRumble,
-    &configFog
+    &configFog, &configForceNearest
 };
 static const char *const sGxConfigLabel[GX_CFG_COUNT] = {
     "240P", "ANTIALIAS", "60FPS", "INVERT CAMERA", "RUMBLE", "FOG",
-    "SAVE AND QUIT", "BACK"
+    "FORCE NEAREST", "SAVE AND QUIT", "BACK"
 };
 
 // Convert an ASCII string into the dialog font's glyph encoding
@@ -2744,6 +2745,7 @@ static void render_pause_gx_config(void) {
             case GX_CFG_INVERT_CAM:
             case GX_CFG_RUMBLE:
             case GX_CFG_FOG:
+            case GX_CFG_FORCE_NEAREST:
                 *sGxConfigToggle[sGxConfigSel - 1] = !*sGxConfigToggle[sGxConfigSel - 1];
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
                 if ((sGxConfigSel - 1) == GX_CFG_RUMBLE) {

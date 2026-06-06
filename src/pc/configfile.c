@@ -44,6 +44,7 @@ bool configAntialias             = false; // (NOTE: Only used in 240p mode) Sele
 bool configInvertCamera          = false; // Invert camera controls
 bool configRumble                = true;  // Shindou controller rumble
 bool configFog                   = true;  // Distance fog (turning it off also extends the level draw distance)
+bool configForceNearest          = false; // Force GX_NEAR (nearest-neighbour) texture filtering instead of bilinear
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -100,6 +101,7 @@ static const struct ConfigOption options[] = {
     {.name = "invert_camera",  .type = CONFIG_TYPE_BOOL, .boolValue = &configInvertCamera},
     {.name = "rumble",         .type = CONFIG_TYPE_BOOL, .boolValue = &configRumble},
     {.name = "fog",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFog},
+    {.name = "force_nearest",  .type = CONFIG_TYPE_BOOL, .boolValue = &configForceNearest},
     {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},

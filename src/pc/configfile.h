@@ -10,6 +10,7 @@ extern bool         configAntialias;
 extern bool         configInvertCamera;
 extern bool         configRumble;
 extern bool         configFog;
+extern bool         configForceNearest;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;
