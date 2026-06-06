@@ -2670,20 +2670,17 @@ static s8 sGxConfigSel = 1;
 
 static bool *const sGxConfigToggle[3] = { &config240p, &configAntialias, &config60Fps };
 static const char *const sGxConfigLabel[GX_CFG_COUNT] = {
-    "240P", "ANTIALIAS", "60FPS", "SAVE - QUIT TO LOADER", "BACK"
+    "240P", "ANTIALIAS", "60FPS", "SAVE AND QUIT", "BACK"
 };
 
+// Convert an ASCII string into the dialog font's glyph encoding
 static void gx_ascii_to_dialog(u8 *dst, const char *src) {
     while (*src != '\0') {
         char c = *src++;
         u8 g;
-        if (c >= '0' && c <= '9')      g = c - '0';        // 0x00-0x09
-        else if (c >= 'A' && c <= 'Z') g = c - 'A' + 0x0A; // 0x0A-0x23
-        else if (c == '-')             g = 0x9F;
-        else if (c == '.')             g = 0x3F;
-        else if (c == ':')             g = 0xE6;
-        else if (c == '/')             g = 0xD0;
-        else                           g = 0x9E; // space / unknown
+        if (c >= '0' && c <= '9')      g = c - '0';
+        else if (c >= 'A' && c <= 'Z') g = c - 'A' + 0x0A;
+        else                           g = DIALOG_CHAR_SPACE;
         *dst++ = g;
     }
     *dst = DIALOG_CHAR_TERMINATOR;
@@ -2715,7 +2712,7 @@ static void render_pause_gx_config(void) {
             gx_print_ascii(x + 108, ry, *sGxConfigToggle[i] ? "ON" : "OFF");
         }
     }
-    gx_print_ascii(x, yTop - 28 - GX_CFG_COUNT * spacing - 6, "VIDEO CHANGES NEED RESTART");
+    gx_print_ascii(40, yTop - 28 - GX_CFG_COUNT * spacing - 6, "RESTART TO APPLY CHANGES");
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
 
@@ -2753,7 +2750,7 @@ static void render_pause_gx_config(void) {
 static void render_pause_gx_hint(void) {
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
-    gx_print_ascii(18, 16, "Z: OPTIONS");
+    gx_print_ascii(18, 16, "Z OPTIONS");
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
 }
 
