@@ -3,6 +3,8 @@
 
 extern bool         configFullscreen;
 extern bool         config60Fps;
+extern bool         config240p;
+extern bool         configAntialias;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;

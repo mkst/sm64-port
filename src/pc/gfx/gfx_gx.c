@@ -10,6 +10,7 @@
 #include "gfx_cc.h"
 #include "gfx_rendering_api.h"
 #include "gfx_gx_wm.h"
+#include "gfx_screen_config.h"
 
 #define TEXTURE_POOL_SIZE 4096
 #define DEFAULT_FIFO_SIZE 256 * 1024
@@ -609,10 +610,11 @@ static void gfx_gx_set_zmode_decal(bool zmode_decal)
 
 static void gfx_gx_set_viewport(int x, int y, int width, int height)
 {
-    vp_x = x;
-    vp_y = y;
-    vp_w = width;
-    vp_h = height;
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+    vp_x = x * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    vp_w = width * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    vp_y = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    vp_h = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     gx_issue_viewport(1.0f);
 }
 
@@ -621,7 +623,11 @@ static void gfx_gx_set_scissor(int x, int y, int width, int height)
     // OpenGL has a bottom left origin, GX has top right
     // This took me hours to find out
     GXRModeObj *rmode = gfx_gx_wm_get_rmode();
-    GX_SetScissor(x, rmode->efbHeight - y - height, width, height);
+    int sx = x * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    int sw = width * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    int sy = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    int sh = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    GX_SetScissor(sx, rmode->efbHeight - sy - sh, sw, sh);
 }
 
 static void gfx_gx_set_use_alpha(bool use_alpha)

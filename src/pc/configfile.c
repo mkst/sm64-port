@@ -38,7 +38,9 @@ struct ConfigOption {
  *Config options and default values
  */
 bool configFullscreen            = false;
-bool config60Fps                 = true; // 60fps interpolation; set "60fps false" in the config to disable
+bool config60Fps                 = true; // 60fps interpolation mode; set "60fps false" in the config to disable
+bool config240p                  = false; // Output a true 240p (single-field) signal instead of 480i/480p
+bool configAntialias             = false; // NOTE: Only used in 240p mode; selects the antialiased video mode variant
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -90,6 +92,8 @@ unsigned int configKeyStickRight = 0;
 static const struct ConfigOption options[] = {
     {.name = "fullscreen",     .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
     {.name = "60fps",          .type = CONFIG_TYPE_BOOL, .boolValue = &config60Fps},
+    {.name = "240p",           .type = CONFIG_TYPE_BOOL, .boolValue = &config240p},
+    {.name = "antialias",      .type = CONFIG_TYPE_BOOL, .boolValue = &configAntialias},
     {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},
