@@ -19,6 +19,7 @@
 #include "segment2.h"
 #include "segment_symbols.h"
 #include "thread6.h"
+#include "pc/controller/controller_rumble.h"
 #include <prevent_bss_reordering.h>
 
 // FIXME: I'm not sure all of these variables belong in this file, but I don't
@@ -512,6 +513,9 @@ void read_controller_inputs(void) {
         release_rumble_pak_control();
 #endif
     }
+#ifdef TARGET_GX
+    rumble_update();
+#endif
     run_demo_inputs();
 
     for (i = 0; i < 2; i++) {

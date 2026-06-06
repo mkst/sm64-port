@@ -1,7 +1,9 @@
 #ifndef THREAD6_H
 #define THREAD6_H
 
-#ifdef VERSION_SH
+// GX is here since Wii has an option to enable rumble on all versions
+// Code for this lives here: src/pc/controller/controller_rumble.c
+#if defined(VERSION_SH) || defined(TARGET_GX)
 
 extern s32 gRumblePakTimer;
 
@@ -18,6 +20,6 @@ void cancel_rumble(void);
 void create_thread_6(void);
 void rumble_thread_update_vi(void);
 
-#endif // VERSION_SH
+#endif // VERSION_SH || TARGET_GX
 
 #endif // THREAD6_H
