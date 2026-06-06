@@ -23,6 +23,12 @@
 #include "text_strings.h"
 #include "types.h"
 
+#ifdef TARGET_GX
+#include <stdlib.h>
+#include <stdbool.h>
+#include "pc/configfile.h"
+#endif
+
 u16 gDialogColorFadeTimer;
 s8 gLastDialogLineNum;
 s32 gDialogVariable;
@@ -2648,6 +2654,115 @@ s32 gCourseDoneMenuTimer = 0;
 s32 gCourseCompleteCoins = 0;
 s8 gHudFlash = 0;
 
+#ifdef TARGET_GX
+// In-game options menu for Wii/GameCube
+enum GxConfigRow {
+    GX_CFG_240P,
+    GX_CFG_ANTIALIAS,
+    GX_CFG_60FPS,
+    GX_CFG_SAVE_QUIT,
+    GX_CFG_BACK,
+    GX_CFG_COUNT
+};
+
+static s8 sGxConfigOpen = 0;
+static s8 sGxConfigSel = 1;
+
+static bool *const sGxConfigToggle[3] = { &config240p, &configAntialias, &config60Fps };
+static const char *const sGxConfigLabel[GX_CFG_COUNT] = {
+    "240P", "ANTIALIAS", "60FPS", "SAVE - QUIT TO LOADER", "BACK"
+};
+
+static void gx_ascii_to_dialog(u8 *dst, const char *src) {
+    while (*src != '\0') {
+        char c = *src++;
+        u8 g;
+        if (c >= '0' && c <= '9')      g = c - '0';        // 0x00-0x09
+        else if (c >= 'A' && c <= 'Z') g = c - 'A' + 0x0A; // 0x0A-0x23
+        else if (c == '-')             g = 0x9F;
+        else if (c == '.')             g = 0x3F;
+        else if (c == ':')             g = 0xE6;
+        else if (c == '/')             g = 0xD0;
+        else                           g = 0x9E; // space / unknown
+        *dst++ = g;
+    }
+    *dst = DIALOG_CHAR_TERMINATOR;
+}
+
+static void gx_print_ascii(s16 x, s16 y, const char *str) {
+    u8 buf[40];
+    gx_ascii_to_dialog(buf, str);
+    print_generic_string(x, y, buf);
+}
+
+static void render_pause_gx_config(void) {
+    const s16 x = 56;
+    const s16 yTop = 172;
+    const s16 spacing = 16;
+
+    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, GX_CFG_COUNT);
+
+    shade_screen();
+
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+
+    gx_print_ascii(x, yTop, "GX OPTIONS");
+    for (int i = 0; i < GX_CFG_COUNT; i++) {
+        s16 ry = yTop - 28 - i * spacing;
+        gx_print_ascii(x + 12, ry, sGxConfigLabel[i]);
+        if (i < 3) {
+            gx_print_ascii(x + 108, ry, *sGxConfigToggle[i] ? "ON" : "OFF");
+        }
+    }
+    gx_print_ascii(x, yTop - 28 - GX_CFG_COUNT * spacing - 6, "VIDEO CHANGES NEED RESTART");
+
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+
+    // selection arrow
+    create_dl_translation_matrix(MENU_MTX_PUSH, x + 2,
+                                 (yTop - 28 - (sGxConfigSel - 1) * spacing) - 2, 0);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+    gSPDisplayList(gDisplayListHead++, dl_draw_triangle);
+    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+    if (gPlayer3Controller->buttonPressed & A_BUTTON) {
+        switch (sGxConfigSel - 1) {
+            case GX_CFG_240P:
+            case GX_CFG_ANTIALIAS:
+            case GX_CFG_60FPS:
+                *sGxConfigToggle[sGxConfigSel - 1] = !*sGxConfigToggle[sGxConfigSel - 1];
+                play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+                break;
+            case GX_CFG_SAVE_QUIT:
+                configfile_save(CONFIG_FILE);
+                exit(0);
+                break;
+            case GX_CFG_BACK:
+                sGxConfigOpen = 0;
+                play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
+                break;
+        }
+    } else if (gPlayer3Controller->buttonPressed & (B_BUTTON | Z_TRIG)) {
+        sGxConfigOpen = 0;
+        play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
+    }
+}
+
+static bool gx_config_menu_update(void) {
+    if (sGxConfigOpen) {
+        render_pause_gx_config();
+        return true;
+    }
+    if (gPlayer3Controller->buttonPressed & Z_TRIG) {
+        sGxConfigSel = 1;
+        sGxConfigOpen = 1;
+        play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+    }
+    return false;
+}
+#endif
+
 s16 render_pause_courses_and_castle(void) {
     s16 num;
 
@@ -2675,6 +2790,9 @@ s16 render_pause_courses_and_castle(void) {
             }
             break;
         case DIALOG_STATE_VERTICAL:
+#ifdef TARGET_GX
+            if (gx_config_menu_update()) break;
+#endif
             shade_screen();
             render_pause_my_score_coins();
             render_pause_red_coins();
@@ -2705,6 +2823,9 @@ s16 render_pause_courses_and_castle(void) {
             }
             break;
         case DIALOG_STATE_HORIZONTAL:
+#ifdef TARGET_GX
+            if (gx_config_menu_update()) break;
+#endif
             shade_screen();
             print_hud_pause_colorful_str();
             render_pause_castle_menu_box(160, 143);

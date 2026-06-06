@@ -1,6 +1,8 @@
 #ifndef CONFIGFILE_H
 #define CONFIGFILE_H
 
+#define CONFIG_FILE "sm64config.txt"
+
 extern bool         configFullscreen;
 extern bool         config60Fps;
 extern bool         config240p;
