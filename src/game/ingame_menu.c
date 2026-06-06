@@ -2657,35 +2657,52 @@ s8 gHudFlash = 0;
 
 #ifdef TARGET_GX
 // In-game options menu for Wii/GameCube
-enum GxConfigRow {
-    GX_CFG_240P,
-    GX_CFG_ANTIALIAS,
-    GX_CFG_60FPS,
-    GX_CFG_INVERT_CAM,
-    GX_CFG_RUMBLE,
-    GX_CFG_FOG,
-    GX_CFG_FORCE_NEAREST,
-    GX_CFG_SAVE_QUIT,
-    GX_CFG_BACK,
-    GX_CFG_COUNT
+// Action performed when A is pressed
+enum GxConfigAction {
+    GX_ACT_NONE,    // Standard toggle
+    GX_ACT_SAVE_QUIT,
+    GX_ACT_BACK
 };
 
-// The first GX_CFG_NUM_TOGGLES rows are on/off toggles backed by sGxConfigToggle.
-#define GX_CFG_NUM_TOGGLES 7
+struct GxConfigRow {
+    const char *label;
+    bool *value;                 // NULL for action rows
+    enum GxConfigAction action;
+};
+
+static const struct GxConfigRow sGxConfigLive[] = {
+    { "60FPS",         &config60Fps,        GX_ACT_NONE },
+    { "INVERT CAMERA", &configInvertCamera, GX_ACT_NONE },
+    { "RUMBLE",        &configRumble,       GX_ACT_NONE },
+    { "FOG",           &configFog,          GX_ACT_NONE },
+    { "FORCE NEAREST", &configForceNearest, GX_ACT_NONE },
+    { "SAVE AND QUIT", NULL,                GX_ACT_SAVE_QUIT },
+    { "BACK",          NULL,                GX_ACT_BACK },
+};
+static const struct GxConfigRow sGxConfigRestart[] = {
+    { "240P",          &config240p,         GX_ACT_NONE },
+    { "ANTIALIAS",     &configAntialias,    GX_ACT_NONE },
+    { "SAVE AND QUIT", NULL,                GX_ACT_SAVE_QUIT },
+    { "BACK",          NULL,                GX_ACT_BACK },
+};
+
+struct GxConfigTab {
+    const char *title;
+    const struct GxConfigRow *rows;
+    s8 numRows;
+    bool needsRestart;
+};
+static const struct GxConfigTab sGxConfigTabs[] = {
+    { "LIVE OPTIONS",    sGxConfigLive,    ARRAY_COUNT(sGxConfigLive),    FALSE },
+    { "RESTART OPTIONS", sGxConfigRestart, ARRAY_COUNT(sGxConfigRestart), TRUE  },
+};
+#define GX_CFG_NUM_TABS ARRAY_COUNT(sGxConfigTabs)
 
 static s8 sGxConfigOpen = 0;
+static s8 sGxConfigTab = 0;
 static s8 sGxConfigSel = 1;
 
-static bool *const sGxConfigToggle[GX_CFG_NUM_TOGGLES] = {
-    &config240p, &configAntialias, &config60Fps, &configInvertCamera, &configRumble,
-    &configFog, &configForceNearest
-};
-static const char *const sGxConfigLabel[GX_CFG_COUNT] = {
-    "240P", "ANTIALIAS", "60FPS", "INVERT CAMERA", "RUMBLE", "FOG",
-    "FORCE NEAREST", "SAVE AND QUIT", "BACK"
-};
-
-// Convert an ASCII string into the dialog font's glyph encoding
+// Convert an ASCII string into the dialogue font's glyph encoding
 static void gx_ascii_to_dialog(u8 *dst, const char *src) {
     while (*src != '\0') {
         char c = *src++;
@@ -2711,22 +2728,30 @@ static void render_pause_gx_config(void) {
     const s16 labelX = x + 12;  // left edge of each option label
     const s16 valueX = x + 144; // left edge of the ON/OFF column
 
-    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, GX_CFG_COUNT);
+    const struct GxConfigTab *tab = &sGxConfigTabs[sGxConfigTab];
+
+    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, tab->numRows);
 
     shade_screen();
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
 
-    gx_print_ascii(x, yTop, "GX OPTIONS");
-    for (int i = 0; i < GX_CFG_COUNT; i++) {
+    gx_print_ascii(x, yTop, tab->title);
+    for (int i = 0; i < tab->numRows; i++) {
+        const struct GxConfigRow *row = &tab->rows[i];
         s16 ry = yTop - 28 - i * spacing;
-        gx_print_ascii(labelX, ry, sGxConfigLabel[i]);
-        if (i < GX_CFG_NUM_TOGGLES) {
-            gx_print_ascii(valueX, ry, *sGxConfigToggle[i] ? "ON" : "OFF");
+        gx_print_ascii(labelX, ry, row->label);
+        if (row->value != NULL) {
+            gx_print_ascii(valueX, ry, *row->value ? "ON" : "OFF");
         }
     }
-    gx_print_ascii(40, yTop - 28 - GX_CFG_COUNT * spacing - 6, "RESTART TO APPLY CHANGES");
+
+    s16 footerY = yTop - 28 - tab->numRows * spacing - 6;
+    gx_print_ascii(40, footerY, "L R   SWITCH TAB");
+    if (tab->needsRestart) {
+        gx_print_ascii(40, footerY - spacing, "RESTART TO APPLY CHANGES");
+    }
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
 
@@ -2737,18 +2762,20 @@ static void render_pause_gx_config(void) {
     gSPDisplayList(gDisplayListHead++, dl_draw_triangle);
     gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
 
+    if (gPlayer3Controller->buttonPressed & (L_TRIG | R_TRIG | L_JPAD | R_JPAD)) {
+        sGxConfigTab = (sGxConfigTab + 1) % GX_CFG_NUM_TABS;
+        sGxConfigSel = 1;
+        play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+        return;
+    }
+
     if (gPlayer3Controller->buttonPressed & A_BUTTON) {
-        switch (sGxConfigSel - 1) {
-            case GX_CFG_240P:
-            case GX_CFG_ANTIALIAS:
-            case GX_CFG_60FPS:
-            case GX_CFG_INVERT_CAM:
-            case GX_CFG_RUMBLE:
-            case GX_CFG_FOG:
-            case GX_CFG_FORCE_NEAREST:
-                *sGxConfigToggle[sGxConfigSel - 1] = !*sGxConfigToggle[sGxConfigSel - 1];
+        const struct GxConfigRow *row = &tab->rows[sGxConfigSel - 1];
+        switch (row->action) {
+            case GX_ACT_NONE:
+                *row->value = !*row->value;
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
-                if ((sGxConfigSel - 1) == GX_CFG_RUMBLE) {
+                if (row->value == &configRumble) {
                     // Rumble on enable
                     if (configRumble) {
                         queue_rumble_data(5, 80);
@@ -2757,11 +2784,11 @@ static void render_pause_gx_config(void) {
                     }
                 }
                 break;
-            case GX_CFG_SAVE_QUIT:
+            case GX_ACT_SAVE_QUIT:
                 configfile_save(CONFIG_FILE);
                 exit(0);
                 break;
-            case GX_CFG_BACK:
+            case GX_ACT_BACK:
                 sGxConfigOpen = 0;
                 play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
                 break;
@@ -2786,6 +2813,7 @@ static bool gx_config_menu_update(void) {
         return true;
     }
     if (gPlayer3Controller->buttonPressed & Z_TRIG) {
+        sGxConfigTab = 0;
         sGxConfigSel = 1;
         sGxConfigOpen = 1;
         play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
