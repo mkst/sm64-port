@@ -100,8 +100,12 @@ static void controller_wii_read(OSContPad *pad)
 
     if (data.type == WPAD_EXP_NUNCHUK)
     {
-        pad->stick_x = data.nunchuk.js.pos.x - data.nunchuk.js.center.x;
-        pad->stick_y = data.nunchuk.js.pos.y - data.nunchuk.js.center.y;
+        pad->stick_x = scale_joystick_axis(
+            data.nunchuk.js.pos.x, data.nunchuk.js.center.x, data.nunchuk.js.min.x,
+            data.nunchuk.js.max.x);
+        pad->stick_y = scale_joystick_axis(
+            data.nunchuk.js.pos.y, data.nunchuk.js.center.y, data.nunchuk.js.min.y,
+            data.nunchuk.js.max.y);
     }
     else if (data.type == WPAD_EXP_CLASSIC)
     {
