@@ -10,6 +10,11 @@
 #include "rendering_graph_node.h"
 #include "shadow.h"
 #include "sm64.h"
+#include "pc/configfile.h"
+
+// When fog is disabled have the renderer go out further than it would normally
+#define DRAW_DIST_FAR_PLANE 65000.0f
+#define DRAW_DIST_OBJ_CULL  30000.0f
 
 /**
  * This file contains the code that processes the scene graph for rendering.
@@ -306,12 +311,17 @@ static void geo_process_perspective(struct GraphNodePerspective *node) {
         f32 aspect = (f32) gCurGraphNodeRoot->width / (f32) gCurGraphNodeRoot->height;
 #endif
 
-        guPerspective(mtx, &perspNorm, node->fov, aspect, node->near, node->far, 1.0f);
+        f32 far = node->far;
+        if (!configFog && far < DRAW_DIST_FAR_PLANE) {
+            far = DRAW_DIST_FAR_PLANE;
+        }
+
+        guPerspective(mtx, &perspNorm, node->fov, aspect, node->near, far, 1.0f);
 
         if (gGlobalTimer == node->prevTimestamp + 1 && gGlobalTimer != gLakituState.skipCameraInterpolationTimestamp) {
 
             fovInterpolated = (node->prevFov + node->fov) / 2.0f;
-            guPerspective(mtxInterpolated, &perspNorm, fovInterpolated, aspect, node->near, node->far, 1.0f);
+            guPerspective(mtxInterpolated, &perspNorm, fovInterpolated, aspect, node->near, far, 1.0f);
             gSPPerspNormalize(gDisplayListHead++, perspNorm);
 
             sPerspectivePos = gDisplayListHead;
@@ -1053,7 +1063,12 @@ static s32 obj_is_in_view(struct GraphNodeObject *node, Mat4 matrix) {
     //  makes PU travel safe when the camera is locked on the main map.
     //  If Mario were rendered with a depth over 65536 it would cause overflow
     //  when converting the transformation matrix to a fixed point matrix.
-    if (matrix[3][2] < -20000.0f - cullingRadius) {
+    if (!configFog) {
+        // Extend cull but stay under point mentioned above
+        if (matrix[3][2] < -DRAW_DIST_OBJ_CULL) {
+            return FALSE;
+        }
+    } else if (matrix[3][2] < -20000.0f - cullingRadius) {
         return FALSE;
     }
 

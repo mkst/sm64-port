@@ -43,6 +43,7 @@ bool config240p                  = false; // Output a true 240p signal instead o
 bool configAntialias             = false; // (NOTE: Only used in 240p mode) Selects the antialiased video mode variant
 bool configInvertCamera          = false; // Invert camera controls
 bool configRumble                = true;  // Shindou controller rumble
+bool configFog                   = true;  // Distance fog (turning it off also extends the level draw distance)
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -98,6 +99,7 @@ static const struct ConfigOption options[] = {
     {.name = "antialias",      .type = CONFIG_TYPE_BOOL, .boolValue = &configAntialias},
     {.name = "invert_camera",  .type = CONFIG_TYPE_BOOL, .boolValue = &configInvertCamera},
     {.name = "rumble",         .type = CONFIG_TYPE_BOOL, .boolValue = &configRumble},
+    {.name = "fog",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFog},
     {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},
