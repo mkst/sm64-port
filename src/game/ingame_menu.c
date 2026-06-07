@@ -2669,7 +2669,10 @@ enum GxConfigAction {
 enum GxRowKind {
     GX_KIND_BOOL,   // bool* toggled with A, shown as ON/OFF
     GX_KIND_INT,    // s16* adjusted left/right, shown as a number
-    GX_KIND_ACTION  // performs an action on A
+    GX_KIND_ACTION, // performs an action on A
+#ifdef __wii__
+    GX_KIND_STORAGE // toggles configStorageDevice, shown as SD/USB, not present on GC for what I hope are obvious reasons
+#endif
 };
 
 struct GxConfigRow {
@@ -2690,6 +2693,9 @@ static const struct GxConfigRow sGxConfigLive[] = {
     { .label = "RUMBLE",        .kind = GX_KIND_BOOL,   .boolVal = &configRumble },
     { .label = "FOG",           .kind = GX_KIND_BOOL,   .boolVal = &configFog },
     { .label = "FORCE NEAREST", .kind = GX_KIND_BOOL,   .boolVal = &configForceNearest },
+#ifdef __wii__
+    { .label = "STORAGE",       .kind = GX_KIND_STORAGE },
+#endif
     { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
     { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
 };
@@ -2789,6 +2795,10 @@ static void render_pause_gx_config(void) {
         gx_print_ascii(labelX, ry, row->label);
         if (row->kind == GX_KIND_BOOL) {
             gx_print_ascii(valueX, ry, *row->boolVal ? "ON" : "OFF");
+#ifdef __wii__
+        } else if (row->kind == GX_KIND_STORAGE) {
+            gx_print_ascii(valueX, ry, configStorageDevice == STORAGE_DEVICE_USB ? "USB" : "SD");
+#endif
         } else if (row->kind == GX_KIND_INT) {
             if (row->intOnOff) {
                 gx_print_ascii(valueX, ry, *row->intVal ? "ON" : "OFF");
@@ -2866,6 +2876,14 @@ static void render_pause_gx_config(void) {
             if (row->action == GX_ACT_PUPPYCAM) {
                 newcam_set_active(configPuppycam);
             }
+#ifdef __wii__
+        } else if (row->kind == GX_KIND_STORAGE) {
+            // Move config and save to the other device safely
+            unsigned int target = (configStorageDevice == STORAGE_DEVICE_USB)
+                                      ? STORAGE_DEVICE_SD : STORAGE_DEVICE_USB;
+            configfile_switch_storage_device(target);
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+#endif
         } else if (row->kind == GX_KIND_ACTION) {
             switch (row->action) {
                 case GX_ACT_SAVE_QUIT:

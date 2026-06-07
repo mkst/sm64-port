@@ -9,6 +9,7 @@
 #ifdef TARGET_GX
 #include <fat.h>
 #ifdef __wii__
+#include <sys/stat.h>
 #include <wiiuse/wpad.h>
 #endif
 #include <ogc/pad.h>
@@ -53,6 +54,9 @@ unsigned int puppycam_invertY      = 0;
 unsigned int puppycam_degrade      = 10;  // How quickly the camera slows down after letting go
 unsigned int puppycam_aggression   = 0;   // How aggressively the camera re-centres behind Mario
 unsigned int puppycam_panlevel     = 75;
+#ifdef __wii__
+unsigned int configStorageDevice   = STORAGE_DEVICE_SD; // SD or USB but prefer SD
+#endif
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -212,20 +216,110 @@ static unsigned int tokenize_string(char *str, int maxTokens, char **tokens) {
     return count;
 }
 
+#ifdef __wii__
+static const char *device_root(unsigned int device) {
+    return (device == STORAGE_DEVICE_USB) ? "usb:" : "sd:";
+}
+
+static void build_storage_path(char *buf, size_t size, unsigned int device, const char *filename) {
+    snprintf(buf, size, "%s/apps/sm64/%s", device_root(device), filename);
+}
+
+static void ensure_storage_dir(unsigned int device) {
+    char dir[64];
+    snprintf(dir, sizeof(dir), "%s/apps", device_root(device));
+    mkdir(dir, 0777);
+    snprintf(dir, sizeof(dir), "%s/apps/sm64", device_root(device));
+    mkdir(dir, 0777);
+}
+
+const char *get_storage_path(const char *filename) {
+    static char path[64];
+    ensure_storage_dir(configStorageDevice);
+    build_storage_path(path, sizeof(path), configStorageDevice, filename);
+    return path;
+}
+
+static bool copy_file(const char *src, const char *dst) {
+    FILE *in = fopen(src, "rb");
+    if (in == NULL)
+        return false;
+    FILE *out = fopen(dst, "wb");
+    if (out == NULL) {
+        fclose(in);
+        return false;
+    }
+    char buf[512];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0)
+        fwrite(buf, 1, n, out);
+    fclose(in);
+    fclose(out);
+    return true;
+}
+
+void configfile_switch_storage_device(unsigned int newDevice) {
+    if (newDevice == configStorageDevice)
+        return;
+
+    unsigned int oldDevice = configStorageDevice;
+
+    // Bail out if the new device isn't writable
+    ensure_storage_dir(newDevice);
+    char testPath[64];
+    build_storage_path(testPath, sizeof(testPath), newDevice, ".sm64_write_test");
+    FILE *test = fopen(testPath, "wb");
+    if (test == NULL)
+        return;
+    fclose(test);
+    remove(testPath);
+
+    static const char *const files[] = { CONFIG_FILE, SAVE_FILE };
+    for (unsigned int i = 0; i < ARRAY_LEN(files); i++) {
+        char src[64], dst[64];
+        build_storage_path(src, sizeof(src), oldDevice, files[i]);
+        build_storage_path(dst, sizeof(dst), newDevice, files[i]);
+        if (copy_file(src, dst))
+            remove(src);
+    }
+
+    configStorageDevice = newDevice;
+}
+#endif
+
 // Loads the config file specified by 'filename'
 void configfile_load(const char *filename) {
-#ifdef TARGET_GX
+    const char *path = filename;
+#ifdef __wii__
+    fatInitDefault();
+    // ALways prefer SD
+    configStorageDevice = STORAGE_DEVICE_SD;
+    char probe[64];
+    build_storage_path(probe, sizeof(probe), STORAGE_DEVICE_SD, filename);
+    FILE *probeFile = fopen(probe, "r");
+    if (probeFile != NULL) {
+        fclose(probeFile);
+    } else {
+        build_storage_path(probe, sizeof(probe), STORAGE_DEVICE_USB, filename);
+        probeFile = fopen(probe, "r");
+        if (probeFile != NULL) {
+            fclose(probeFile);
+            configStorageDevice = STORAGE_DEVICE_USB;
+        }
+    }
+    path = get_storage_path(filename);
+#elif defined(TARGET_GX)
     fatInitDefault();
 #endif
     FILE *file;
     char *line;
 
-    printf("Loading configuration from '%s'\n", filename);
+    printf("Loading configuration from '%s'\n", path);
 
-    file = fopen(filename, "r");
+    file = fopen(path, "r");
     if (file == NULL) {
         // Create a new config file and save defaults
-        printf("Config file '%s' not found. Creating it.\n", filename);
+        printf("Config file '%s' not found. Creating it.\n", path);
         configfile_save(filename);
         return;
     }
@@ -281,14 +375,18 @@ void configfile_load(const char *filename) {
 
 // Writes the config file to 'filename'
 void configfile_save(const char *filename) {
-#ifdef TARGET_GX
+    const char *path = filename;
+#ifdef __wii__
+    fatInitDefault();
+    path = get_storage_path(filename);
+#elif defined(TARGET_GX)
     fatInitDefault();
 #endif
     FILE *file;
 
-    printf("Saving configuration to '%s'\n", filename);
+    printf("Saving configuration to '%s'\n", path);
 
-    file = fopen(filename, "w");
+    file = fopen(path, "w");
     if (file == NULL) {
         // error
         return;

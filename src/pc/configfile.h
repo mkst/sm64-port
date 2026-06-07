@@ -3,6 +3,22 @@
 
 #define CONFIG_FILE "sm64config.txt"
 
+#ifdef __wii__
+// Save is always located under /apps/sm64 now on Wii
+#define SAVE_FILE "sm64_save_file.bin"
+
+enum StorageDevice {
+    STORAGE_DEVICE_SD  = 0,
+    STORAGE_DEVICE_USB = 1,
+};
+
+extern unsigned int configStorageDevice;
+
+const char *get_storage_path(const char *filename);
+
+void configfile_switch_storage_device(unsigned int newDevice);
+#endif
+
 extern bool         configFullscreen;
 extern bool         config60Fps;
 extern bool         config240p;

@@ -7,6 +7,14 @@
 #include <emscripten.h>
 #endif
 
+#ifdef __wii__
+#include <stdbool.h>
+#include "pc/configfile.h"
+#define SAVE_FILE_PATH get_storage_path(SAVE_FILE)
+#else
+#define SAVE_FILE_PATH "sm64_save_file.bin"
+#endif
+
 extern OSMgrArgs piMgrArgs;
 
 u64 osClockRate = 62500000;
@@ -146,7 +154,7 @@ s32 osEepromLongRead(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes)
         ret = 0;
     }
 #else
-    FILE *fp = fopen("sm64_save_file.bin", "rb");
+    FILE *fp = fopen(SAVE_FILE_PATH, "rb");
     if (fp == NULL) {
         return -1;
     }
@@ -176,7 +184,7 @@ s32 osEepromLongWrite(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes
     }, content);
     s32 ret = 0;
 #else
-    FILE* fp = fopen("sm64_save_file.bin", "wb");
+    FILE* fp = fopen(SAVE_FILE_PATH, "wb");
     if (fp == NULL) {
         return -1;
     }
