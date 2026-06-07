@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include "pc/configfile.h"
 #include "thread6.h"
+#include "src/puppycam/puppycam.h"
 #endif
 
 u16 gDialogColorFadeTimer;
@@ -2661,29 +2662,54 @@ s8 gHudFlash = 0;
 enum GxConfigAction {
     GX_ACT_NONE,    // Standard toggle
     GX_ACT_SAVE_QUIT,
-    GX_ACT_BACK
+    GX_ACT_BACK,
+    GX_ACT_PUPPYCAM
+};
+
+enum GxRowKind {
+    GX_KIND_BOOL,   // bool* toggled with A, shown as ON/OFF
+    GX_KIND_INT,    // s16* adjusted left/right, shown as a number
+    GX_KIND_ACTION  // performs an action on A
 };
 
 struct GxConfigRow {
     const char *label;
-    bool *value;                 // NULL for action rows
+    enum GxRowKind kind;
     enum GxConfigAction action;
+    bool *boolVal;               // GX_KIND_BOOL
+    s16  *intVal;                // GX_KIND_INT
+    s16   minVal;                // GX_KIND_INT
+    s16   maxVal;                // GX_KIND_INT
+    s16   step;                  // GX_KIND_INT
+    bool  intOnOff;              // GX_KIND_INT: render 0/1 as OFF/ON
 };
 
 static const struct GxConfigRow sGxConfigLive[] = {
-    { "60FPS",         &config60Fps,        GX_ACT_NONE },
-    { "INVERT CAMERA", &configInvertCamera, GX_ACT_NONE },
-    { "RUMBLE",        &configRumble,       GX_ACT_NONE },
-    { "FOG",           &configFog,          GX_ACT_NONE },
-    { "FORCE NEAREST", &configForceNearest, GX_ACT_NONE },
-    { "SAVE AND QUIT", NULL,                GX_ACT_SAVE_QUIT },
-    { "BACK",          NULL,                GX_ACT_BACK },
+    { .label = "60FPS",         .kind = GX_KIND_BOOL,   .boolVal = &config60Fps },
+    { .label = "INVERT CAMERA", .kind = GX_KIND_BOOL,   .boolVal = &configInvertCamera },
+    { .label = "RUMBLE",        .kind = GX_KIND_BOOL,   .boolVal = &configRumble },
+    { .label = "FOG",           .kind = GX_KIND_BOOL,   .boolVal = &configFog },
+    { .label = "FORCE NEAREST", .kind = GX_KIND_BOOL,   .boolVal = &configForceNearest },
+    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
+};
+static const struct GxConfigRow sGxConfigPuppy[] = {
+    { .label = "ENABLED",       .kind = GX_KIND_BOOL,   .action = GX_ACT_PUPPYCAM, .boolVal = &configPuppycam },
+    { .label = "SENSITIVITY X", .kind = GX_KIND_INT,    .intVal = &newcam_sensitivityX, .minVal = 10, .maxVal = 500, .step = 5 },
+    { .label = "SENSITIVITY Y", .kind = GX_KIND_INT,    .intVal = &newcam_sensitivityY, .minVal = 10, .maxVal = 500, .step = 5 },
+    { .label = "INVERT X",      .kind = GX_KIND_INT,    .intVal = &newcam_invertX, .minVal = 0, .maxVal = 1, .step = 1, .intOnOff = TRUE },
+    { .label = "INVERT Y",      .kind = GX_KIND_INT,    .intVal = &newcam_invertY, .minVal = 0, .maxVal = 1, .step = 1, .intOnOff = TRUE },
+    { .label = "CENTERING",     .kind = GX_KIND_INT,    .intVal = &newcam_aggression, .minVal = 0, .maxVal = 100, .step = 5 },
+    { .label = "PANNING",       .kind = GX_KIND_INT,    .intVal = &newcam_panlevel, .minVal = 0, .maxVal = 100, .step = 5 },
+    { .label = "DECEL SPEED",   .kind = GX_KIND_INT,    .intVal = &newcam_degrade, .minVal = 5, .maxVal = 100, .step = 5 },
+    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action = GX_ACT_BACK },
 };
 static const struct GxConfigRow sGxConfigRestart[] = {
-    { "240P",          &config240p,         GX_ACT_NONE },
-    { "ANTIALIAS",     &configAntialias,    GX_ACT_NONE },
-    { "SAVE AND QUIT", NULL,                GX_ACT_SAVE_QUIT },
-    { "BACK",          NULL,                GX_ACT_BACK },
+    { .label = "240P",          .kind = GX_KIND_BOOL,   .boolVal = &config240p },
+    { .label = "ANTIALIAS",     .kind = GX_KIND_BOOL,   .boolVal = &configAntialias },
+    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
 };
 
 struct GxConfigTab {
@@ -2694,6 +2720,7 @@ struct GxConfigTab {
 };
 static const struct GxConfigTab sGxConfigTabs[] = {
     { "LIVE OPTIONS",    sGxConfigLive,    ARRAY_COUNT(sGxConfigLive),    FALSE },
+    { "PUPPYCAM",        sGxConfigPuppy,   ARRAY_COUNT(sGxConfigPuppy),   FALSE },
     { "RESTART OPTIONS", sGxConfigRestart, ARRAY_COUNT(sGxConfigRestart), TRUE  },
 };
 #define GX_CFG_NUM_TABS ARRAY_COUNT(sGxConfigTabs)
@@ -2701,6 +2728,7 @@ static const struct GxConfigTab sGxConfigTabs[] = {
 static s8 sGxConfigOpen = 0;
 static s8 sGxConfigTab = 0;
 static s8 sGxConfigSel = 1;
+static f32 sGxConfigAdjustTimer = 0;
 
 // Convert an ASCII string into the dialogue font's glyph encoding
 static void gx_ascii_to_dialog(u8 *dst, const char *src) {
@@ -2721,16 +2749,33 @@ static void gx_print_ascii(s16 x, s16 y, const char *str) {
     print_generic_string(x, y, buf);
 }
 
+static void gx_print_int(s16 x, s16 y, s32 val) {
+    char buf[12];
+    char *p = buf + sizeof(buf) - 1;
+    u32 v = (val < 0) ? 0 : (u32) val;
+    *p = '\0';
+    do {
+        *--p = '0' + (v % 10);
+        v /= 10;
+    } while (v != 0);
+    gx_print_ascii(x, y, p);
+}
+
 static void render_pause_gx_config(void) {
     const s16 x = 56;
     const s16 yTop = 172;
-    const s16 spacing = 16;
     const s16 labelX = x + 12;  // left edge of each option label
-    const s16 valueX = x + 144; // left edge of the ON/OFF column
+    const s16 valueX = x + 144; // left edge of the value column
 
     const struct GxConfigTab *tab = &sGxConfigTabs[sGxConfigTab];
+    // Tighten the line spacing when a tab has a lot of rows (read the puppycam tab)
+    const s16 spacing = (tab->numRows > 7) ? 13 : 16;
 
     handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, tab->numRows);
+
+    if (tab->rows == sGxConfigPuppy) {
+        newcam_save_settings();
+    }
 
     shade_screen();
 
@@ -2742,8 +2787,14 @@ static void render_pause_gx_config(void) {
         const struct GxConfigRow *row = &tab->rows[i];
         s16 ry = yTop - 28 - i * spacing;
         gx_print_ascii(labelX, ry, row->label);
-        if (row->value != NULL) {
-            gx_print_ascii(valueX, ry, *row->value ? "ON" : "OFF");
+        if (row->kind == GX_KIND_BOOL) {
+            gx_print_ascii(valueX, ry, *row->boolVal ? "ON" : "OFF");
+        } else if (row->kind == GX_KIND_INT) {
+            if (row->intOnOff) {
+                gx_print_ascii(valueX, ry, *row->intVal ? "ON" : "OFF");
+            } else {
+                gx_print_int(valueX, ry, *row->intVal);
+            }
         }
     }
 
@@ -2765,33 +2816,69 @@ static void render_pause_gx_config(void) {
     if (gPlayer3Controller->buttonPressed & (L_TRIG | R_TRIG | L_JPAD | R_JPAD)) {
         sGxConfigTab = (sGxConfigTab + 1) % GX_CFG_NUM_TABS;
         sGxConfigSel = 1;
+        sGxConfigAdjustTimer = 0;
         play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
         return;
     }
 
-    if (gPlayer3Controller->buttonPressed & A_BUTTON) {
-        const struct GxConfigRow *row = &tab->rows[sGxConfigSel - 1];
-        switch (row->action) {
-            case GX_ACT_NONE:
-                *row->value = !*row->value;
+    const struct GxConfigRow *row = &tab->rows[sGxConfigSel - 1];
+
+    // Left/right adjustment for numeric rows
+    if (row->kind == GX_KIND_INT) {
+        s16 dir = 0;
+        if (gPlayer3Controller->rawStickX > 60 || (gPlayer3Controller->buttonDown & R_CBUTTONS)) {
+            dir = 1;
+        } else if (gPlayer3Controller->rawStickX < -60 || (gPlayer3Controller->buttonDown & L_CBUTTONS)) {
+            dir = -1;
+        }
+
+        if (dir != 0) {
+            sGxConfigAdjustTimer -= 1;
+            if (sGxConfigAdjustTimer <= 0) {
+                s16 step = row->step;
+                if (gPlayer3Controller->buttonDown & A_BUTTON) step *= 5; // hold A to adjust faster
+
+                s32 val = *row->intVal + dir * step;
+                if (val < row->minVal) val = row->minVal;
+                if (val > row->maxVal) val = row->maxVal;
+                *row->intVal = (s16) val;
+
                 play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
-                if (row->value == &configRumble) {
-                    // Rumble on enable
-                    if (configRumble) {
-                        queue_rumble_data(5, 80);
-                    } else {
-                        cancel_rumble();
-                    }
+                sGxConfigAdjustTimer += 3;
+            }
+        } else {
+            sGxConfigAdjustTimer = 0;
+        }
+    }
+
+    if (gPlayer3Controller->buttonPressed & A_BUTTON) {
+        if (row->kind == GX_KIND_BOOL) {
+            *row->boolVal = !*row->boolVal;
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+            if (row->boolVal == &configRumble) {
+                // Rumble on enable
+                if (configRumble) {
+                    queue_rumble_data(5, 80);
+                } else {
+                    cancel_rumble();
                 }
-                break;
-            case GX_ACT_SAVE_QUIT:
-                configfile_save(CONFIG_FILE);
-                exit(0);
-                break;
-            case GX_ACT_BACK:
-                sGxConfigOpen = 0;
-                play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
-                break;
+            }
+            if (row->action == GX_ACT_PUPPYCAM) {
+                newcam_set_active(configPuppycam);
+            }
+        } else if (row->kind == GX_KIND_ACTION) {
+            switch (row->action) {
+                case GX_ACT_SAVE_QUIT:
+                    configfile_save(CONFIG_FILE);
+                    exit(0);
+                    break;
+                case GX_ACT_BACK:
+                    sGxConfigOpen = 0;
+                    play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
+                    break;
+                default:
+                    break;
+            }
         }
     } else if (gPlayer3Controller->buttonPressed & (B_BUTTON | Z_TRIG)) {
         sGxConfigOpen = 0;

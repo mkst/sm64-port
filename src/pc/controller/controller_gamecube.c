@@ -12,6 +12,13 @@
 #include "../configfile.h"
 #endif
 
+// Puppycam right-stick input
+extern u8 newcam_active;
+extern s16 newcam_analogue;
+extern s16 newcam_rightstick[2];
+
+#define PUPPY_STICK_DEADZONE 12
+
 static int button_mapping[10][2];
 
 static void set_button_mapping(int index, int mask_n64, int mask_gamecube)
@@ -32,18 +39,33 @@ static uint32_t controller_gamecube_get_held(const PADStatus *status)
         }
     }
 
-    bool inverted_look = false;
-    s8 deadzone = 10;
     s8 ssx = status->substickX;
     s8 ssy = status->substickY;
-    if (ssx > deadzone)
-        res |= inverted_look ? L_CBUTTONS : R_CBUTTONS;
-    if (ssx < -deadzone)
-        res |= inverted_look ? R_CBUTTONS : L_CBUTTONS;
-    if (ssy > deadzone)
-        res |= inverted_look ? D_CBUTTONS : U_CBUTTONS;
-    if (ssy < -deadzone)
-        res |= inverted_look ? U_CBUTTONS : D_CBUTTONS;
+
+    if (newcam_active) {
+        // Have a proper analogue camera when using puppycam
+        int rsx = ssx * 3 / 2;
+        int rsy = ssy * 3 / 2;
+        if (rsx > 127) rsx = 127;
+        if (rsx < -127) rsx = -127;
+        if (rsy > 127) rsy = 127;
+        if (rsy < -127) rsy = -127;
+        newcam_rightstick[0] = rsx;
+        newcam_rightstick[1] = rsy;
+        newcam_analogue = (rsx > PUPPY_STICK_DEADZONE || rsx < -PUPPY_STICK_DEADZONE ||
+                           rsy > PUPPY_STICK_DEADZONE || rsy < -PUPPY_STICK_DEADZONE) ? 1 : 0;
+    } else {
+        bool inverted_look = false;
+        s8 deadzone = 10;
+        if (ssx > deadzone)
+            res |= inverted_look ? L_CBUTTONS : R_CBUTTONS;
+        if (ssx < -deadzone)
+            res |= inverted_look ? R_CBUTTONS : L_CBUTTONS;
+        if (ssy > deadzone)
+            res |= inverted_look ? D_CBUTTONS : U_CBUTTONS;
+        if (ssy < -deadzone)
+            res |= inverted_look ? U_CBUTTONS : D_CBUTTONS;
+    }
 
     return res;
 }

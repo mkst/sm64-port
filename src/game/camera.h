@@ -112,6 +112,7 @@
 #define CAMERA_MODE_8_DIRECTIONS      0x0E // AKA Parallel Camera, Bowser Courses & Rainbow Ride
 #define CAMERA_MODE_FREE_ROAM         0x10
 #define CAMERA_MODE_SPIRAL_STAIRS     0x11
+#define CAM_MODE_NEWCAM               0x12
 
 #define CAM_MOVE_RETURN_TO_MIDDLE       0x0001
 #define CAM_MOVE_ZOOMED_OUT             0x0002
@@ -711,6 +712,7 @@ s32 approach_s16_asymptotic(s16 current, s16 target, s16 divisor);
 void approach_vec3f_asymptotic(Vec3f current, Vec3f target, f32 xMul, f32 yMul, f32 zMul);
 void set_or_approach_vec3f_asymptotic(Vec3f dst, Vec3f goal, f32 xMul, f32 yMul, f32 zMul);
 s32 camera_approach_s16_symmetric_bool(s16 *current, s16 target, s16 increment);
+s32 camera_approach_s16_symmetric(s16 current, s16 target, s16 increment);
 s32 set_or_approach_s16_symmetric(s16 *current, s16 target, s16 increment);
 s32 camera_approach_f32_symmetric_bool(f32 *current, f32 target, f32 increment);
 f32 camera_approach_f32_symmetric(f32 value, f32 target, f32 increment);

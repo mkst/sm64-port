@@ -45,6 +45,14 @@ bool configInvertCamera          = false; // Invert camera controls
 bool configRumble                = true;  // Shindou controller rumble
 bool configFog                   = true;  // Distance fog (turning it off also extends the level draw distance)
 bool configForceNearest          = false; // Force GX_NEAR (nearest-neighbour) texture filtering instead of bilinear
+bool configPuppycam              = false; // Use the Puppycam analogue camera instead of the original camera
+unsigned int puppycam_sensitivityX = 75;
+unsigned int puppycam_sensitivityY = 75;
+unsigned int puppycam_invertX      = 0;
+unsigned int puppycam_invertY      = 0;
+unsigned int puppycam_degrade      = 10;  // How quickly the camera slows down after letting go
+unsigned int puppycam_aggression   = 0;   // How aggressively the camera re-centres behind Mario
+unsigned int puppycam_panlevel     = 75;
 #ifndef TARGET_GX
 // Keyboard mappings (scancode values)
 unsigned int configKeyA          = 0x26;
@@ -102,6 +110,14 @@ static const struct ConfigOption options[] = {
     {.name = "rumble",         .type = CONFIG_TYPE_BOOL, .boolValue = &configRumble},
     {.name = "fog",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFog},
     {.name = "force_nearest",  .type = CONFIG_TYPE_BOOL, .boolValue = &configForceNearest},
+    {.name = "puppycam",       .type = CONFIG_TYPE_BOOL, .boolValue = &configPuppycam},
+    {.name = "puppycam_sensitivity_x",  .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_sensitivityX},
+    {.name = "puppycam_sensitivity_y",  .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_sensitivityY},
+    {.name = "puppycam_invert_x",       .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_invertX},
+    {.name = "puppycam_invert_y",       .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_invertY},
+    {.name = "puppycam_stopping_speed", .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_degrade},
+    {.name = "puppycam_centre_aggression", .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_aggression},
+    {.name = "puppycam_pan_amount",     .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_panlevel},
     {.name = "key_a",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyA},
     {.name = "key_b",          .type = CONFIG_TYPE_UINT, .uintValue = &configKeyB},
     {.name = "key_start",      .type = CONFIG_TYPE_UINT, .uintValue = &configKeyStart},
