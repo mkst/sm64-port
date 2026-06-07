@@ -15,6 +15,7 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
 #include "gfx_screen_config.h"
+#include "../configfile.h"
 
 #include "../configfile.h"
 
@@ -648,7 +649,7 @@ static void gfx_sp_pop_matrix(uint32_t count) {
 }
 
 static float gfx_adjust_x_for_aspect_ratio(float x) {
-    return x * (4.0f / 3.0f) / ((float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height);
+    return x * (4.0f / 3.0f) / gfx_current_dimensions.aspect_ratio;
 }
 
 static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *vertices) {
@@ -1713,6 +1714,11 @@ void gfx_start_frame(void) {
         gfx_current_dimensions.height = 1;
     }
     gfx_current_dimensions.aspect_ratio = (float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height;
+#ifdef TARGET_GX
+    if (configWidescreen) {
+        gfx_current_dimensions.aspect_ratio = 16.0f / 9.0f;
+    }
+#endif
 }
 
 void gfx_run(Gfx *commands) {

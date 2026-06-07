@@ -191,6 +191,7 @@ void main_func(void) {
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
 
     configfile_load(CONFIG_FILE);
+    configfile_resolve_widescreen();
     atexit(save_config);
 
 #ifdef TARGET_WEB

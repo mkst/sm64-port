@@ -647,11 +647,32 @@ static void gfx_gx_set_zmode_decal(bool zmode_decal)
     zmode_decal_on = zmode_decal;
 }
 
+// If for some reason you like stretched 4:3 this is why this isn't forced.
+// You're wrong, but I'll give you this at least.
+static bool gx_pillarbox_active(void)
+{
+    return configPillarbox && !configWidescreen;
+}
+
+static int gx_map_x(int x, int fbWidth)
+{
+    if (gx_pillarbox_active())
+        return fbWidth / 8 + x * fbWidth * 3 / (DESIRED_SCREEN_WIDTH * 4);
+    return x * fbWidth / DESIRED_SCREEN_WIDTH;
+}
+
+static int gx_map_w(int width, int fbWidth)
+{
+    if (gx_pillarbox_active())
+        return width * fbWidth * 3 / (DESIRED_SCREEN_WIDTH * 4);
+    return width * fbWidth / DESIRED_SCREEN_WIDTH;
+}
+
 static void gfx_gx_set_viewport(int x, int y, int width, int height)
 {
     GXRModeObj *rmode = gfx_gx_wm_get_rmode();
-    vp_x = x * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
-    vp_w = width * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    vp_x = gx_map_x(x, rmode->fbWidth);
+    vp_w = gx_map_w(width, rmode->fbWidth);
     vp_y = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     vp_h = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     gx_issue_viewport(1.0f);
@@ -662,8 +683,8 @@ static void gfx_gx_set_scissor(int x, int y, int width, int height)
     // OpenGL has a bottom left origin, GX has top right
     // This took me hours to find out
     GXRModeObj *rmode = gfx_gx_wm_get_rmode();
-    int sx = x * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
-    int sw = width * rmode->fbWidth / DESIRED_SCREEN_WIDTH;
+    int sx = gx_map_x(x, rmode->fbWidth);
+    int sw = gx_map_w(width, rmode->fbWidth);
     int sy = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     int sh = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     GX_SetScissor(sx, rmode->efbHeight - sy - sh, sw, sh);

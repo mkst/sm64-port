@@ -11,6 +11,7 @@
 #ifdef __wii__
 #include <sys/stat.h>
 #include <wiiuse/wpad.h>
+#include <ogc/conf.h>
 #endif
 #include <ogc/pad.h>
 #endif
@@ -23,6 +24,7 @@ enum ConfigOptionType {
     CONFIG_TYPE_BOOL,
     CONFIG_TYPE_UINT,
     CONFIG_TYPE_FLOAT,
+    CONFIG_TYPE_WIDESCREEN, // off / on / auto / pillarbox
 };
 
 struct ConfigOption {
@@ -40,6 +42,9 @@ struct ConfigOption {
  */
 bool configFullscreen            = false;
 bool config60Fps                 = true; // 60fps interpolation mode
+bool configWidescreen            = false; // resolved at startup from configWidescreenMode
+unsigned int configWidescreenMode = WIDESCREEN_AUTO; // anamorphic 16:9
+bool configPillarbox             = false; // render 4:3 into the centre 3/4 so a 16:9 display's stretch restores correct 4:3
 bool config240p                  = false; // Output a true 240p signal instead of 480i/480p
 bool configAntialias             = false; // (NOTE: Only used in 240p mode) Selects the antialiased video mode variant
 bool configInvertCamera          = false; // Invert camera controls
@@ -109,6 +114,7 @@ unsigned int configKeyStickRight = 0;
 static const struct ConfigOption options[] = {
     {.name = "fullscreen",     .type = CONFIG_TYPE_BOOL, .boolValue = &configFullscreen},
     {.name = "60fps",          .type = CONFIG_TYPE_BOOL, .boolValue = &config60Fps},
+    {.name = "widescreen",     .type = CONFIG_TYPE_WIDESCREEN, .uintValue = &configWidescreenMode},
     {.name = "240p",           .type = CONFIG_TYPE_BOOL, .boolValue = &config240p},
     {.name = "antialias",      .type = CONFIG_TYPE_BOOL, .boolValue = &configAntialias},
     {.name = "invert_camera",  .type = CONFIG_TYPE_BOOL, .boolValue = &configInvertCamera},
@@ -361,6 +367,16 @@ void configfile_load(const char *filename) {
                         case CONFIG_TYPE_FLOAT:
                             sscanf(tokens[1], "%f", option->floatValue);
                             break;
+                        case CONFIG_TYPE_WIDESCREEN:
+                            if (strcmp(tokens[1], "auto") == 0)
+                                *option->uintValue = WIDESCREEN_AUTO;
+                            else if (strcmp(tokens[1], "pillarbox") == 0)
+                                *option->uintValue = WIDESCREEN_PILLARBOX;
+                            else if (strcmp(tokens[1], "on") == 0 || strcmp(tokens[1], "true") == 0)
+                                *option->uintValue = WIDESCREEN_ON;
+                            else if (strcmp(tokens[1], "off") == 0 || strcmp(tokens[1], "false") == 0)
+                                *option->uintValue = WIDESCREEN_OFF;
+                            break;
                         default:
                             assert(0); // bad type
                     }
@@ -373,6 +389,36 @@ void configfile_load(const char *filename) {
     }
 
     fclose(file);
+}
+
+bool configfile_console_is_widescreen(void) {
+#if defined(TARGET_GX) && defined(__wii__)
+    return CONF_GetAspectRatio() == CONF_ASPECT_16_9;
+#else
+    return false;
+#endif
+}
+
+void configfile_resolve_widescreen(void) {
+#ifdef TARGET_GX
+    configPillarbox = false;
+    switch (configWidescreenMode) {
+        case WIDESCREEN_ON:
+            configWidescreen = true;
+            break;
+        case WIDESCREEN_PILLARBOX:
+            configWidescreen = false;
+            configPillarbox = true;
+            break;
+        case WIDESCREEN_OFF:
+            configWidescreen = false;
+            break;
+        case WIDESCREEN_AUTO:
+        default:
+            configWidescreen = configfile_console_is_widescreen();
+            break;
+    }
+#endif
 }
 
 // Writes the config file to 'filename'
@@ -406,6 +452,12 @@ void configfile_save(const char *filename) {
                 break;
             case CONFIG_TYPE_FLOAT:
                 fprintf(file, "%s %f\n", option->name, *option->floatValue);
+                break;
+            case CONFIG_TYPE_WIDESCREEN:
+                fprintf(file, "%s %s\n", option->name,
+                        *option->uintValue == WIDESCREEN_AUTO ? "auto" :
+                        *option->uintValue == WIDESCREEN_PILLARBOX ? "pillarbox" :
+                        *option->uintValue == WIDESCREEN_ON ? "on" : "off");
                 break;
             default:
                 assert(0); // unknown type

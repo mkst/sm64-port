@@ -2667,9 +2667,10 @@ enum GxConfigAction {
 };
 
 enum GxRowKind {
-    GX_KIND_BOOL,   // bool* toggled with A, shown as ON/OFF
-    GX_KIND_INT,    // s16* adjusted left/right, shown as a number
-    GX_KIND_ACTION, // performs an action on A
+    GX_KIND_BOOL,       // bool* toggled with A, shown as ON/OFF
+    GX_KIND_INT,        // s16* adjusted left/right, shown as a number
+    GX_KIND_ACTION,     // performs an action on A
+    GX_KIND_WIDESCREEN, // cycles OFF/ON/AUTO/PILLARBOX with A
 #ifdef __wii__
     GX_KIND_STORAGE // toggles configStorageDevice, shown as SD/USB, not present on GC for what I hope are obvious reasons
 #endif
@@ -2689,6 +2690,7 @@ struct GxConfigRow {
 
 static const struct GxConfigRow sGxConfigLive[] = {
     { .label = "60FPS",         .kind = GX_KIND_BOOL,   .boolVal = &config60Fps },
+    { .label = "WIDESCREEN",    .kind = GX_KIND_WIDESCREEN },
     { .label = "INVERT CAMERA", .kind = GX_KIND_BOOL,   .boolVal = &configInvertCamera },
     { .label = "RUMBLE",        .kind = GX_KIND_BOOL,   .boolVal = &configRumble },
     { .label = "FOG",           .kind = GX_KIND_BOOL,   .boolVal = &configFog },
@@ -2796,6 +2798,11 @@ static void render_pause_gx_config(void) {
         gx_print_ascii(labelX, ry, row->label);
         if (row->kind == GX_KIND_BOOL) {
             gx_print_ascii(valueX, ry, *row->boolVal ? "ON" : "OFF");
+        } else if (row->kind == GX_KIND_WIDESCREEN) {
+            gx_print_ascii(valueX, ry,
+                           configWidescreenMode == WIDESCREEN_ON        ? "ON" :
+                           configWidescreenMode == WIDESCREEN_AUTO      ? "AUTO" :
+                           configWidescreenMode == WIDESCREEN_PILLARBOX ? "PILLARBOX" : "OFF");
 #ifdef __wii__
         } else if (row->kind == GX_KIND_STORAGE) {
             gx_print_ascii(valueX, ry, configStorageDevice == STORAGE_DEVICE_USB ? "USB" : "SD");
@@ -2877,6 +2884,17 @@ static void render_pause_gx_config(void) {
             if (row->action == GX_ACT_PUPPYCAM) {
                 newcam_set_active(configPuppycam);
             }
+        } else if (row->kind == GX_KIND_WIDESCREEN) {
+#ifdef __wii__
+            // OFF -> ON -> AUTO -> PILLARBOX
+            configWidescreenMode = (configWidescreenMode + 1) % 4;
+#else
+            configWidescreenMode = (configWidescreenMode == WIDESCREEN_OFF) ? WIDESCREEN_ON
+                                 : (configWidescreenMode == WIDESCREEN_ON)  ? WIDESCREEN_PILLARBOX
+                                 : WIDESCREEN_OFF;
+#endif
+            configfile_resolve_widescreen();
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
 #ifdef __wii__
         } else if (row->kind == GX_KIND_STORAGE) {
             // Move config and save to the other device safely

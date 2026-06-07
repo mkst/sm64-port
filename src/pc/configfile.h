@@ -19,8 +19,17 @@ const char *get_storage_path(const char *filename);
 void configfile_switch_storage_device(unsigned int newDevice);
 #endif
 
+// Stored preference for configWidescreenMode
+#define WIDESCREEN_OFF       0u
+#define WIDESCREEN_ON        1u
+#define WIDESCREEN_AUTO      2u // follow the console's system 16:9 setting on Wii only
+#define WIDESCREEN_PILLARBOX 3u // Proper 4:3 on a 16:9 display. Doesn't work on some displays
+
 extern bool         configFullscreen;
 extern bool         config60Fps;
+extern bool         configWidescreen;
+extern unsigned int configWidescreenMode;
+extern bool         configPillarbox;
 extern bool         config240p;
 extern bool         configAntialias;
 extern bool         configInvertCamera;
@@ -55,5 +64,7 @@ extern unsigned int configKeyStickRight;
 
 void configfile_load(const char *filename);
 void configfile_save(const char *filename);
+void configfile_resolve_widescreen(void);
+bool configfile_console_is_widescreen(void);  // true when the console's system setting is 16:9 (Wii)
 
 #endif
