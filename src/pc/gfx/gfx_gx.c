@@ -779,6 +779,13 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
     GX_End();
 }
 
+static void gx_apply_copy_filter(void)
+{
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+    GX_SetCopyFilter(rmode->aa, rmode->sample_pattern,
+                     configViDeflicker ? GX_TRUE : GX_FALSE, rmode->vfilter);
+}
+
 // Configure the embedded framebuffer and the EFB->XFB copy
 static void gx_setup_efb(void)
 {
@@ -795,7 +802,7 @@ static void gx_setup_efb(void)
     GX_SetDispCopyYScale((f32)rmode->xfbHeight / (f32)rmode->efbHeight);
     GX_SetDispCopySrc(0, 0, rmode->fbWidth, rmode->efbHeight);
     GX_SetDispCopyDst(rmode->fbWidth, rmode->xfbHeight);
-    GX_SetCopyFilter(rmode->aa, rmode->sample_pattern, GX_TRUE, rmode->vfilter);
+    gx_apply_copy_filter();
     GX_SetFieldMode(rmode->field_rendering, ((rmode->viHeight == 2 * rmode->xfbHeight) ? GX_ENABLE : GX_DISABLE));
 
     if (rmode->aa)
@@ -866,6 +873,15 @@ static void gfx_gx_start_frame(void)
         prev_fog = configFog;
         projection_initialized = true;
         gx_build_projection();
+    }
+
+    // Apply deflicker filter
+    static bool prev_deflicker = true;
+    static bool deflicker_initialized = false;
+    if (!deflicker_initialized || configViDeflicker != prev_deflicker) {
+        prev_deflicker = configViDeflicker;
+        deflicker_initialized = true;
+        gx_apply_copy_filter();
     }
 
     GX_InvalidateTexAll();

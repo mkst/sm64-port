@@ -27,6 +27,7 @@ extern bool         configInvertCamera;
 extern bool         configRumble;
 extern bool         configFog;
 extern bool         configForceNearest;
+extern bool         configViDeflicker;
 extern bool         configPuppycam;
 extern unsigned int puppycam_sensitivityX;
 extern unsigned int puppycam_sensitivityY;

@@ -2693,6 +2693,7 @@ static const struct GxConfigRow sGxConfigLive[] = {
     { .label = "RUMBLE",        .kind = GX_KIND_BOOL,   .boolVal = &configRumble },
     { .label = "FOG",           .kind = GX_KIND_BOOL,   .boolVal = &configFog },
     { .label = "FORCE NEAREST", .kind = GX_KIND_BOOL,   .boolVal = &configForceNearest },
+    { .label = "VI DEFLICKER",  .kind = GX_KIND_BOOL,   .boolVal = &configViDeflicker },
 #ifdef __wii__
     { .label = "STORAGE",       .kind = GX_KIND_STORAGE },
 #endif

@@ -46,6 +46,7 @@ bool configInvertCamera          = false; // Invert camera controls
 bool configRumble                = true;  // Shindou controller rumble
 bool configFog                   = true;  // Distance fog (turning it off also extends the level draw distance)
 bool configForceNearest          = false; // Force GX_NEAR (nearest-neighbour) texture filtering instead of bilinear
+bool configViDeflicker           = true;  // Apply the VI deflicker filter
 bool configPuppycam              = false; // Use the Puppycam analogue camera instead of the original camera
 unsigned int puppycam_sensitivityX = 75;
 unsigned int puppycam_sensitivityY = 75;
@@ -114,6 +115,7 @@ static const struct ConfigOption options[] = {
     {.name = "rumble",         .type = CONFIG_TYPE_BOOL, .boolValue = &configRumble},
     {.name = "fog",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFog},
     {.name = "force_nearest",  .type = CONFIG_TYPE_BOOL, .boolValue = &configForceNearest},
+    {.name = "vi_deflicker",   .type = CONFIG_TYPE_BOOL, .boolValue = &configViDeflicker},
     {.name = "puppycam",       .type = CONFIG_TYPE_BOOL, .boolValue = &configPuppycam},
     {.name = "puppycam_sensitivity_x",  .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_sensitivityX},
     {.name = "puppycam_sensitivity_y",  .type = CONFIG_TYPE_UINT, .uintValue = &puppycam_sensitivityY},
