@@ -2699,7 +2699,7 @@ static const struct GxConfigRow sGxConfigLive[] = {
 #ifdef __wii__
     { .label = "STORAGE",       .kind = GX_KIND_STORAGE },
 #endif
-    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
     { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
 };
 static const struct GxConfigRow sGxConfigPuppy[] = {
@@ -2711,13 +2711,13 @@ static const struct GxConfigRow sGxConfigPuppy[] = {
     { .label = "CENTERING",     .kind = GX_KIND_INT,    .intVal = &newcam_aggression, .minVal = 0, .maxVal = 100, .step = 5 },
     { .label = "PANNING",       .kind = GX_KIND_INT,    .intVal = &newcam_panlevel, .minVal = 0, .maxVal = 100, .step = 5 },
     { .label = "DECEL SPEED",   .kind = GX_KIND_INT,    .intVal = &newcam_degrade, .minVal = 5, .maxVal = 100, .step = 5 },
-    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action = GX_ACT_SAVE_QUIT },
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action = GX_ACT_SAVE_QUIT },
     { .label = "BACK",          .kind = GX_KIND_ACTION, .action = GX_ACT_BACK },
 };
 static const struct GxConfigRow sGxConfigRestart[] = {
     { .label = "240P",          .kind = GX_KIND_BOOL,   .boolVal = &config240p },
     { .label = "ANTIALIAS",     .kind = GX_KIND_BOOL,   .boolVal = &configAntialias },
-    { .label = "SAVE AND QUIT", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
     { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
 };
 
