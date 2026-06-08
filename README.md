@@ -1,18 +1,75 @@
 # Super Mario 64 Wii/Gamecube Port
 
+This is a native port of Super Mario 64 to the Nintendo Gamecube/Nintendo Wii.
+
+![Peach's Castle](docs/peachcastle.png)
+![Bob-Omb Battlefield](docs/bob.png)
+
 This repo does **not** include all assets necessary for compiling the game.
 A prior copy of the game is required to extract the assets.
+Do not ask for where to obtain a ROM. That's for you to figure out.
+
+With the port to more advanced hardware, there also is a handful of option enhancements that can be enabled in-game.
+Do note that some enhancements may result in slightly buggy or odd behaviour that wouldn't be noticed otherwise, but nothing game-breaking.
+Enhancements can be accessed by pausing then pressing the Z/L equivalent for your controller.
+
+You can expect full-speed on Wii with all the performance enhancements enabled at all times.
+I didn't test enough on Gamecube to make the same claim, but it should be able to handle at least 60fps without issue.
+
+![Enhancements Menu](docs/settings.png)
+
+## Enhancements Menu Options
+| Enhancement    | Options                 | Description                                                                                                                                                                                                             |
+|----------------|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 60FPS          | On/Off                  | Enable interpolated 60FPS mode.                                                                                                                                                                                         |
+| WIDESCREEN     | On/Off/Auto/Pillarboxed | Enable/Disable widescreen. Auto goes based on Wii's system settings. Pillarboxing is for 4:3 on 16:9 displays to not get stretching.                                                                                    |
+| 240P           | On/Off                  | Output at 240p over 480i/p [Requires restart to apply].                                                                                                                                                                 |
+| ANTIALIAS      | On/Off                  | Enable/Disable antialiasing [Only applies when 240p is on and requires restart to apply].                                                                                                                               |
+| INVERT CAMERA  | On/Off                  | Flip the camera movement caused by right and left c-buttons [Set to off if using Puppycam].                                                                                                                             |
+| RUMBLE         | On/Off                  | Enable/Disable the Shindou version's rumble on any region.                                                                                                                                                              |
+| FOG            | On/Off                  | Enable/Disable drawing fog in the distance. Also increases draw-distance for some objects.                                                                                                                              |
+| FORCE NEAREST  | On/Off                  | Force nearest-neighbour over bilinear filtering for textures. Looks awful, do not use.                                                                                                                                  |
+| VI DEFLICKER   | On/Off                  | Enable/Disable the Wii's deflicker filter. Enable this on non-CRTs for a cleaner image.                                                                                                                                 |
+| PUPPYCAM       | On/Off                  | Enable/Disable Puppycam (See here on more information on what this is: https://github.com/FazanaJ/puppycam. This also makes the camera fully analogue, bypassing the c-buttons entirely except on Wii remote + Nunchuk. |
+| SENSITIVITY X  | Number                  | Higher makes the camera more sensitive and thus faster in the X axis.                                                                                                                                                   |
+| SENSITIVITY Y  | Number                  | Higher makes the camera more sensitive and thus faster in the Y axis.                                                                                                                                                   |
+| INVERT X       | On/Off                  | Invert the left and right camera inputs.                                                                                                                                                                                |
+| INVERT Y       | On/Off                  | Invert the up and down camera inputs.                                                                                                                                                                                   |
+| STOPPING SPEED | Number                  | Controls how quickly the camera decelerates after the button/stick isn't being held. Higher means longer deceleration time.                                                                                             |
+| CENTERING      | Number                  | How aggressively should the camera try to centre behind Mario. Higher is more aggressive.                                                                                                                               |
+| PANNING        | Number                  | How far should the camera pan when the stick is pressed. Higher means more panning.                                                                                                                                     |
+ 
+Everything is saved automatically upon changing the value. There's no need to save and restart unless you toggle 240p or Antialiasing.
 
 ## Known Issues
 
-This is a work-in-progress, while everything appears to be working fine and running at full speed, the game hasn't
-been fully tested yet, although I do assume you could reasonably play through the entire game in the state that it's currently in.
+- Peach painting doesn't fade into Bowser
+- Credits have clipping issues
+- Docker build may be broken.
+
+## Controls
+
+| N64 control   | Wii Remote + Nunchuk   | Classic Controller | GameCube Controller          |
+|---------------|------------------------|--------------------|------------------------------|
+| Control stick | Nunchuk stick          | Left stick         | Control stick                |
+| A             | A                      | A                  | A                            |
+| B             | B or 2                 | B                  | B                            |
+| Start         | + or -                 | + or -             | Start                        |
+| Z             | Nunchuk Z or 1         | L                  | Z                            |
+| L             | Not mapped             | Not mapped         | L                            |
+| R             | Nunchuk C              | R                  | R                            |
+| C-Up          | Wii Remote D-Pad Up    | Right stick up     | D-Pad Up or C-Stick Up       |
+| C-Down        | Wii Remote D-Pad Down  | Right stick down   | D-Pad Down or C-Stick Down   |
+| C-Left        | Wii Remote D-Pad Left  | Right stick left   | D-Pad Left or C-Stick Left   |
+| C-Right       | Wii Remote D-Pad Right | Right stick right  | D-Pad Right or C-Stick Right |
+| D-Pad         | Not mapped             | Not mapped         | Not mapped                   |
 
 ## Building
 
 Successful compilation will result in a `boot.dol` being created in `build/VERSION_GX/boot.dol` where `VERSION` is one of `us`, `eu`, `jp` or `sh`, and `GX` is either `wii` or `cube`.
 
-Place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_GX/boot.dol` in a directory called `/apps/sm64` on your SD card and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
+For Wii, place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_GX/boot.dol` in a directory called `/apps/sm64` on your SD card and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
+For Gamecube, copy the `boot.dol` to your SD card and run using Swiss or your preferred Gamecube homebrew launcher.
 
 **Supported Build Methods:**
 
@@ -21,8 +78,6 @@ Place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_G
 - [Windows (MSYS2)](#windows-msys2)
 
 ### Docker
-(Note this way of building did not work for me (PalindromicBreadLoaf), however both of the other two did. However, it is
-possible that I just messed up.)
 The following assumes a basic understanding of [Docker](https://www.docker.com/); if you do not belong to the `docker` group, prefix those commands with `sudo`.
 
 **Clone Repository:**
@@ -186,10 +241,6 @@ cp /c/temp/baserom.us.z64 ./ && echo "OK!" # change 'us' to 'eu', 'jp' or 'sh' a
 make VERSION=us --jobs 4 # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
-### Other Operating Systems
-
-TBD; feel free to submit a PR.
-
 ## Project Structure
 
     sm64
@@ -222,5 +273,4 @@ TBD; feel free to submit a PR.
     └── tools: build tools
 
 ## Contributing
-
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
