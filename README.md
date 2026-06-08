@@ -78,43 +78,39 @@ For Gamecube, copy the `boot.dol` to your SD card and run using Swiss or your pr
 - [Windows (MSYS2)](#windows-msys2)
 
 ### Docker
+
 The following assumes a basic understanding of [Docker](https://www.docker.com/); if you do not belong to the `docker` group, prefix those commands with `sudo`.
 
-**Clone Repository:**
+**Install Docker:**
+Follow the instructions here: [Docker Install](https://docs.docker.com/engine/install/ubuntu/) to get docker installed
 
+**Clone Repository:**
 ```sh
 git clone https://github.com/mkst/sm64-port.git --branch wii
-```
 
-**Navigate into freshly checked out repo:**
-
-```sh
 cd sm64-port
 ```
 
 **Copy in baserom.XX.z64:**
-
 ```sh
 cp /path/to/your/baserom.us.z64 ./ # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 **Build with pre-baked image:**
-
-Change `VERSION=us` if applicable. If on Windows replace `$(pwd):/sm64` with the path to the current directory, e.g. `"C:\path\to\sm64-port:/sm64"`.
+Change `VERSION=us` if applicable.
 ```sh
-docker run --rm -v $(pwd):/sm64 markstreet/sm64:wii make VERSION=us --jobs 4 # Linux/OSX
+docker run --rm -v $(pwd):/sm64 markstreet/sm64:wii make VERSION=us --jobs 4 # Linux/macOS
+docker run -rm -v C:\path\to\sm64-port:/sm64 markstreet/sm64:wii make Version=us --jobs 4 # Windows. Replace /path/to with your actual path.
 ```
 
 ### Linux / WSL (Ubuntu)
 
-This works on **Ubuntu >= 18.04**\
-This can be done on any Linux distro, just substitute the packages for your distro's equivalent.
+These exact instructions work on **Ubuntu >= 18.04**\
+This can be done on any Linux distro, just substitute the packages and DevkitPro section for your distro's equivalent.
 
 ```sh
-sudo -i
-
-apt-get update && \
-    apt-get install -y \
+sudo apt-get update && \
+    sudo apt-get install -y \
         binutils-mips-linux-gnu \
         bsdmainutils \
         build-essential \
@@ -123,17 +119,11 @@ apt-get update && \
         python3 \
         wget \
         zlib1g-dev
+````
+Follow **Debian and derivatives** section of the DevkitPro install instructions over at [DevkitPro](https://devkitpro.org/wiki/devkitPro_pacman)
 
-wget https://github.com/devkitPro/pacman/releases/download/v1.0.2/devkitpro-pacman.amd64.deb \
-  -O devkitpro.deb && \
-  echo ebc9f199da9a685e5264c87578efe29309d5d90f44f99f3dad9dcd96323fece3 devkitpro.deb | sha256sum --check && \
-  apt install -y ./devkitpro.deb && \
-  rm devkitpro.deb
-
-dkp-pacman -Syu wii-dev gamecube-dev --noconfirm
-# if this ^^ fails with error about archive format, use a VPN to get yourself out of the USA and then try again.
-
-exit
+```shell
+sudo dkp-pacman -Syu wii-dev gamecube-dev --noconfirm
 
 cd
 
@@ -141,7 +131,7 @@ git clone https://github.com/mkst/sm64-port.git --branch wii
 
 cd sm64-port
 
-# Go and copy the baserom to c:\temp (create that directory in Windows Explorer)
+# Go and copy the baserom to C:\temp (create the directory in Windows Explorer)
 # If you are running Linux natively, just copy the baserom.us.z64 file to the current directory. No need to create anything.
 cp /mnt/c/temp/baserom.us.z64 ./
 
@@ -151,8 +141,15 @@ export PATH="/opt/devkitpro/tools/bin/:~/sm64-port/tools:${PATH}"
 export DEVKITPRO=/opt/devkitpro
 export DEVKITPPC=/opt/devkitpro/devkitPPC
 
-make -j4
+make -j$(nproc) 
 ```
+If the ```make -j$(nproc)``` command fails, try the Docker build in the same directory you are already in. If the Docker build then fails, run:
+
+```shell
+sudo -i
+make -j$(nproc)
+```
+This is super hacky, but should get you a working executable. If you ever wish to rebuild you should only need to rerun the make command.
 
 ### Windows (MSYS2)
 
@@ -238,7 +235,7 @@ cp /c/temp/baserom.us.z64 ./ && echo "OK!" # change 'us' to 'eu', 'jp' or 'sh' a
 **Compile:**
 
 ```sh
-make VERSION=us --jobs 4 # change 'us' to 'eu', 'jp' or 'sh' as appropriate
+make VERSION=us -j$(nproc)  # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 ## Project Structure
