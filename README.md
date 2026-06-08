@@ -73,12 +73,11 @@ For Gamecube, copy the `boot.dol` to your SD card and run using Swiss or your pr
 
 **Supported Build Methods:**
 
-- [Docker](#docker)
+- [Docker](#docker) // May currently be broken
 - [Linux / WSL (Ubuntu >= 18.04)](#linux--wsl-ubuntu)
 - [Windows (MSYS2)](#windows-msys2)
 
 ### Docker
-
 The following assumes a basic understanding of [Docker](https://www.docker.com/); if you do not belong to the `docker` group, prefix those commands with `sudo`.
 
 **Install Docker:**
