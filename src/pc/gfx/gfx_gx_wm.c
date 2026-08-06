@@ -57,6 +57,21 @@ GXRModeObj *gfx_gx_wm_get_rmode(void)
     return rmode;
 }
 
+int gfx_gx_wm_get_field_rate(void)
+{
+    if (rmode == NULL)
+        return 60;
+
+    switch (rmode->viTVMode >> 2)
+    {
+        case VI_PAL:
+        case VI_DEBUG_PAL:
+            return 50;
+        default:
+            return 60;
+    }
+}
+
 static void gfx_gx_wm_set_keyboard_callbacks(UNUSED bool (*on_key_down)(int scancode), UNUSED bool (*on_key_up)(int scancode), UNUSED void (*on_all_keys_up)(void))
 {
 }

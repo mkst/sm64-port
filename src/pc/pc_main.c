@@ -21,9 +21,7 @@
 #ifdef TARGET_GX
 #include "gfx/gfx_gx_wm.h"
 #include "gfx/gfx_gx.h"
-#ifdef __wii__
-#include "wii_shutdown.h"
-#endif
+#include "gx_shutdown.h"
 #endif
 
 #include "audio/audio_api.h"
@@ -111,12 +109,16 @@ void send_display_list(struct SPTask *spTask) {
 #define SAMPLES_LOW 528
 #endif
 
+// EU picks its audio frame length from gRefreshRate.
+static u32 samples_high = SAMPLES_HIGH;
+static u32 samples_low = SAMPLES_LOW;
+
 void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
 
     int samples_left = audio_api->buffered();
-    u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
+    u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? samples_high : samples_low;
     //printf("Audio samples: %d %u\n", samples_left, num_audio_samples);
     s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
     for (int i = 0; i < 2; i++) {
@@ -254,6 +256,13 @@ void main_func(void) {
         audio_api = &audio_null;
     }
 
+#if defined(TARGET_GX) && defined(VERSION_EU)
+    if (gfx_gx_wm_get_field_rate() == 60) {
+        samples_high = 544;
+        samples_low = 528;
+    }
+#endif
+
     audio_init();
     sound_init();
 
@@ -265,13 +274,13 @@ void main_func(void) {
     inited = 1;
 #else
     inited = 1;
-#if defined(TARGET_GX) && defined(__wii__)
-    wii_shutdown_init(save_config);
+#ifdef TARGET_GX
+    gx_shutdown_init(save_config);
 #endif
     while (1) {
         wm_api->main_loop(produce_one_frame);
-#if defined(TARGET_GX) && defined(__wii__)
-        wii_shutdown_poll();
+#ifdef TARGET_GX
+        gx_shutdown_poll();
 #endif
     }
 #endif

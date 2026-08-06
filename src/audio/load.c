@@ -6,6 +6,10 @@
 #include "load.h"
 #include "seqplayer.h"
 
+#ifdef TARGET_GX
+#include "pc/gfx/gfx_gx_wm.h"
+#endif
+
 #define ALIGN16(val) (((val) + 0xF) & ~0xF)
 
 struct SharedDma {
@@ -962,8 +966,14 @@ void audio_init() {
     }
 #endif
 
-    D_EU_802298D0 = 20.03042f;
+    // Running 50Hz audio on 60Hz output makes it run too fast
+#ifdef TARGET_GX
+    gRefreshRate = gfx_gx_wm_get_field_rate();
+#else
     gRefreshRate = 50;
+#endif
+    // 20.03042 is the stock PAL value; 16.713 is the one the 60Hz versions use.
+    D_EU_802298D0 = (gRefreshRate == 50) ? 20.03042f : 16.713f;
     port_eu_init();
     if (k) {
     }

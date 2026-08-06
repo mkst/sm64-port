@@ -21,4 +21,7 @@ extern struct GfxWindowManagerAPI gfx_gx_wm_api;
 
 GXRModeObj *gfx_gx_wm_get_rmode(void);
 
+// Field rate of the selected video mode in Hz.
+int gfx_gx_wm_get_field_rate(void);
+
 #endif
