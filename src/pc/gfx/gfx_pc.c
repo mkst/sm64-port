@@ -17,8 +17,6 @@
 #include "gfx_screen_config.h"
 #include "../configfile.h"
 
-#include "../configfile.h"
-
 #define SUPPORT_CHECK(x) assert(x)
 
 // SCALE_M_N: upscale/downscale M-bit integer to N-bit
@@ -1715,9 +1713,7 @@ void gfx_start_frame(void) {
     }
     gfx_current_dimensions.aspect_ratio = (float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height;
 #ifdef TARGET_GX
-    if (configWidescreen) {
-        gfx_current_dimensions.aspect_ratio = 16.0f / 9.0f;
-    }
+    gfx_current_dimensions.aspect_ratio = configWidescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
 #endif
 }
 
