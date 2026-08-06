@@ -1,13 +1,16 @@
-#ifndef WII_SHUTDOWN_H
-#define WII_SHUTDOWN_H
+#ifndef GX_SHUTDOWN_H
+#define GX_SHUTDOWN_H
 
-#if defined(TARGET_GX) && defined(__wii__)
+#ifdef TARGET_GX
 
-// Gracefully shutdown the Wii
-void wii_shutdown_init(void (*save_config)(void));
+// Install the power/reset button handlers
+void gx_shutdown_init(void (*save_config)(void));
 
-// See if the Wii is supposed to start shutting down this frome
-void wii_shutdown_poll(void);
+// Ask to leave the game at the next safe point
+void gx_shutdown_request_exit(void);
+
+// See if the console is supposed to start shutting down this frame
+void gx_shutdown_poll(void);
 
 #endif
 

@@ -24,9 +24,9 @@
 #include "types.h"
 
 #ifdef TARGET_GX
-#include <stdlib.h>
 #include <stdbool.h>
 #include "pc/configfile.h"
+#include "pc/gx_shutdown.h"
 #include "thread6.h"
 #include "src/puppycam/puppycam.h"
 #endif
@@ -2906,8 +2906,9 @@ static void render_pause_gx_config(void) {
         } else if (row->kind == GX_KIND_ACTION) {
             switch (row->action) {
                 case GX_ACT_SAVE_QUIT:
-                    configfile_save(CONFIG_FILE);
-                    exit(0);
+                    // Leaving from here would tear the console down in the middle of
+                    // building this frame's display list, which hangs a GameCube.
+                    gx_shutdown_request_exit();
                     break;
                 case GX_ACT_BACK:
                     sGxConfigOpen = 0;
