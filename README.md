@@ -1,65 +1,115 @@
 # Super Mario 64 Wii/Gamecube Port
 
+This is a native port of Super Mario 64 to the Nintendo Gamecube/Nintendo Wii.
+
+![Peach's Castle](docs/peachcastle.png)
+![Bob-Omb Battlefield](docs/bob.png)
+
 This repo does **not** include all assets necessary for compiling the game.
 A prior copy of the game is required to extract the assets.
+Do not ask for where to obtain a ROM. That's for you to figure out.
+
+With the port to more advanced hardware, there also is a handful of option enhancements that can be enabled in-game.
+Do note that some enhancements may result in slightly buggy or odd behaviour that wouldn't be noticed otherwise, but nothing game-breaking.
+Enhancements can be accessed by pausing then pressing the Z/L equivalent for your controller.
+
+You can expect full-speed on Wii with all the performance enhancements enabled at all times.
+I didn't test enough on Gamecube to make the same claim, but it should be able to handle at least 60fps without issue.
+
+![Enhancements Menu](docs/settings.png)
+
+## Enhancements Menu Options
+| Enhancement    | Options                 | Description                                                                                                                                                                                                             |
+|----------------|-------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 60FPS          | On/Off                  | Enable interpolated 60FPS mode.                                                                                                                                                                                         |
+| WIDESCREEN     | On/Off/Auto/Pillarboxed | Enable/Disable widescreen. Auto goes based on Wii's system settings. Pillarboxing is for 4:3 on 16:9 displays to not get stretching.                                                                                    |
+| 240P           | On/Off                  | Output at 240p over 480i/p [Requires restart to apply].                                                                                                                                                                 |
+| ANTIALIAS      | On/Off                  | Enable/Disable antialiasing [Only applies when 240p is on and requires restart to apply].                                                                                                                               |
+| INVERT CAMERA  | On/Off                  | Flip the camera movement caused by right and left c-buttons [Set to off if using Puppycam].                                                                                                                             |
+| RUMBLE         | On/Off                  | Enable/Disable the Shindou version's rumble on any region.                                                                                                                                                              |
+| FOG            | On/Off                  | Enable/Disable drawing fog in the distance. Also increases draw-distance for some objects.                                                                                                                              |
+| FORCE NEAREST  | On/Off                  | Force nearest-neighbour over bilinear filtering for textures. Looks awful, do not use.                                                                                                                                  |
+| VI DEFLICKER   | On/Off                  | Enable/Disable the Wii's deflicker filter. Enable this on non-CRTs for a cleaner image.                                                                                                                                 |
+| PUPPYCAM       | On/Off                  | Enable/Disable Puppycam (See here on more information on what this is: https://github.com/FazanaJ/puppycam. This also makes the camera fully analogue, bypassing the c-buttons entirely except on Wii remote + Nunchuk. |
+| SENSITIVITY X  | Number                  | Higher makes the camera more sensitive and thus faster in the X axis.                                                                                                                                                   |
+| SENSITIVITY Y  | Number                  | Higher makes the camera more sensitive and thus faster in the Y axis.                                                                                                                                                   |
+| INVERT X       | On/Off                  | Invert the left and right camera inputs.                                                                                                                                                                                |
+| INVERT Y       | On/Off                  | Invert the up and down camera inputs.                                                                                                                                                                                   |
+| STOPPING SPEED | Number                  | Controls how quickly the camera decelerates after the button/stick isn't being held. Higher means longer deceleration time.                                                                                             |
+| CENTERING      | Number                  | How aggressively should the camera try to centre behind Mario. Higher is more aggressive.                                                                                                                               |
+| PANNING        | Number                  | How far should the camera pan when the stick is pressed. Higher means more panning.                                                                                                                                     |
+ 
+Everything is saved automatically upon changing the value. There's no need to save and restart unless you toggle 240p or Antialiasing.
 
 ## Known Issues
 
-This is a work-in-progress, while everything appears to be working fine and running at full speed, the game hasn't
-been fully tested yet, although I do assume you could reasonably play through the entire game in the state that it's currently in.
+- Peach painting doesn't fade into Bowser
+- Credits have clipping issues
+- Docker build may be broken.
+
+## Controls
+
+| N64 control   | Wii Remote + Nunchuk   | Classic Controller | GameCube Controller          |
+|---------------|------------------------|--------------------|------------------------------|
+| Control stick | Nunchuk stick          | Left stick         | Control stick                |
+| A             | A                      | A                  | A                            |
+| B             | B or 2                 | B                  | B                            |
+| Start         | + or -                 | + or -             | Start                        |
+| Z             | Nunchuk Z or 1         | L                  | Z                            |
+| L             | Not mapped             | Not mapped         | L                            |
+| R             | Nunchuk C              | R                  | R                            |
+| C-Up          | Wii Remote D-Pad Up    | Right stick up     | D-Pad Up or C-Stick Up       |
+| C-Down        | Wii Remote D-Pad Down  | Right stick down   | D-Pad Down or C-Stick Down   |
+| C-Left        | Wii Remote D-Pad Left  | Right stick left   | D-Pad Left or C-Stick Left   |
+| C-Right       | Wii Remote D-Pad Right | Right stick right  | D-Pad Right or C-Stick Right |
+| D-Pad         | Not mapped             | Not mapped         | Not mapped                   |
 
 ## Building
 
 Successful compilation will result in a `boot.dol` being created in `build/VERSION_GX/boot.dol` where `VERSION` is one of `us`, `eu`, `jp` or `sh`, and `GX` is either `wii` or `cube`.
 
-Place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_GX/boot.dol` in a directory called `/apps/sm64` on your SD card and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
+For Wii, place the `boot.dol`, `meta.xml`, and `icon.png` from the above `build/VERSION_GX/boot.dol` in a directory called `/apps/sm64` on your SD card and run using the [Homebrew Channel](https://wiibrew.org/wiki/Homebrew_Channel).
+For Gamecube, copy the `boot.dol` to your SD card and run using Swiss or your preferred Gamecube homebrew launcher.
 
 **Supported Build Methods:**
 
-- [Docker](#docker)
+- [Docker](#docker) // May currently be broken
 - [Linux / WSL (Ubuntu >= 18.04)](#linux--wsl-ubuntu)
 - [Windows (MSYS2)](#windows-msys2)
 
 ### Docker
-(Note this way of building did not work for me (PalindromicBreadLoaf), however both of the other two did. However, it is
-possible that I just messed up.)
 The following assumes a basic understanding of [Docker](https://www.docker.com/); if you do not belong to the `docker` group, prefix those commands with `sudo`.
 
-**Clone Repository:**
+**Install Docker:**
+Follow the instructions here: [Docker Install](https://docs.docker.com/engine/install/ubuntu/) to get docker installed
 
+**Clone Repository:**
 ```sh
 git clone https://github.com/mkst/sm64-port.git --branch wii
-```
 
-**Navigate into freshly checked out repo:**
-
-```sh
 cd sm64-port
 ```
 
 **Copy in baserom.XX.z64:**
-
 ```sh
 cp /path/to/your/baserom.us.z64 ./ # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
 
 **Build with pre-baked image:**
-
-Change `VERSION=us` if applicable. If on Windows replace `$(pwd):/sm64` with the path to the current directory, e.g. `"C:\path\to\sm64-port:/sm64"`.
+Change `VERSION=us` if applicable.
 ```sh
-docker run --rm -v $(pwd):/sm64 markstreet/sm64:wii make VERSION=us --jobs 4 # Linux/OSX
+docker run --rm -v $(pwd):/sm64 markstreet/sm64:wii make VERSION=us --jobs 4 # Linux/macOS
+docker run -rm -v C:\path\to\sm64-port:/sm64 markstreet/sm64:wii make Version=us --jobs 4 # Windows. Replace /path/to with your actual path.
 ```
 
 ### Linux / WSL (Ubuntu)
 
-This works on **Ubuntu >= 18.04**\
-This can be done on any Linux distro, just substitute the packages for your distro's equivalent.
+These exact instructions work on **Ubuntu >= 18.04**\
+This can be done on any Linux distro, just substitute the packages and DevkitPro section for your distro's equivalent.
 
 ```sh
-sudo -i
-
-apt-get update && \
-    apt-get install -y \
+sudo apt-get update && \
+    sudo apt-get install -y \
         binutils-mips-linux-gnu \
         bsdmainutils \
         build-essential \
@@ -68,17 +118,11 @@ apt-get update && \
         python3 \
         wget \
         zlib1g-dev
+````
+Follow **Debian and derivatives** section of the DevkitPro install instructions over at [DevkitPro](https://devkitpro.org/wiki/devkitPro_pacman)
 
-wget https://github.com/devkitPro/pacman/releases/download/v1.0.2/devkitpro-pacman.amd64.deb \
-  -O devkitpro.deb && \
-  echo ebc9f199da9a685e5264c87578efe29309d5d90f44f99f3dad9dcd96323fece3 devkitpro.deb | sha256sum --check && \
-  apt install -y ./devkitpro.deb && \
-  rm devkitpro.deb
-
-dkp-pacman -Syu wii-dev gamecube-dev --noconfirm
-# if this ^^ fails with error about archive format, use a VPN to get yourself out of the USA and then try again.
-
-exit
+```shell
+sudo dkp-pacman -Syu wii-dev gamecube-dev --noconfirm
 
 cd
 
@@ -86,7 +130,7 @@ git clone https://github.com/mkst/sm64-port.git --branch wii
 
 cd sm64-port
 
-# Go and copy the baserom to c:\temp (create that directory in Windows Explorer)
+# Go and copy the baserom to C:\temp (create the directory in Windows Explorer)
 # If you are running Linux natively, just copy the baserom.us.z64 file to the current directory. No need to create anything.
 cp /mnt/c/temp/baserom.us.z64 ./
 
@@ -96,8 +140,15 @@ export PATH="/opt/devkitpro/tools/bin/:~/sm64-port/tools:${PATH}"
 export DEVKITPRO=/opt/devkitpro
 export DEVKITPPC=/opt/devkitpro/devkitPPC
 
-make -j4
+make -j$(nproc) 
 ```
+If the ```make -j$(nproc)``` command fails, try the Docker build in the same directory you are already in. If the Docker build then fails, run:
+
+```shell
+sudo -i
+make -j$(nproc)
+```
+This is super hacky, but should get you a working executable. If you ever wish to rebuild you should only need to rerun the make command.
 
 ### Windows (MSYS2)
 
@@ -183,12 +234,8 @@ cp /c/temp/baserom.us.z64 ./ && echo "OK!" # change 'us' to 'eu', 'jp' or 'sh' a
 **Compile:**
 
 ```sh
-make VERSION=us --jobs 4 # change 'us' to 'eu', 'jp' or 'sh' as appropriate
+make VERSION=us -j$(nproc)  # change 'us' to 'eu', 'jp' or 'sh' as appropriate
 ```
-
-### Other Operating Systems
-
-TBD; feel free to submit a PR.
 
 ## Project Structure
 
@@ -222,5 +269,4 @@ TBD; feel free to submit a PR.
     └── tools: build tools
 
 ## Contributing
-
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.

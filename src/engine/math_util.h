@@ -36,11 +36,15 @@ void *vec3f_copy(Vec3f dest, Vec3f src);
 void *vec3f_set(Vec3f dest, f32 x, f32 y, f32 z);
 void *vec3f_add(Vec3f dest, Vec3f a);
 void *vec3f_sum(Vec3f dest, Vec3f a, Vec3f b);
+void *vec3f_dif(Vec3f dest, Vec3f a, Vec3f b);
+void *vec3f_mul(Vec3f dest, f32 a);
 void *vec3s_copy(Vec3s dest, Vec3s src);
 void *vec3s_set(Vec3s dest, s16 x, s16 y, s16 z);
 void *vec3s_add(Vec3s dest, Vec3s a);
 void *vec3s_sum(Vec3s dest, Vec3s a, Vec3s b);
 void *vec3s_sub(Vec3s dest, Vec3s a);
+f32 vec3f_length(Vec3f a);
+f32 vec3f_dot(Vec3f a, Vec3f b);
 void *vec3s_to_vec3f(Vec3f dest, Vec3s a);
 void *vec3f_to_vec3s(Vec3s dest, Vec3f a);
 void *find_vector_perpendicular_to_plane(Vec3f dest, Vec3f a, Vec3f b, Vec3f c);
@@ -70,5 +74,9 @@ f32 atan2f(f32 a, f32 b);
 void spline_get_weights(Vec4f result, f32 t, UNUSED s32 c);
 void anim_spline_init(Vec4s *keyFrames);
 s32 anim_spline_poll(Vec3f result);
+
+// 60fps interpolation helpers (defined in rendering_graph_node.c)
+void interpolate_vectors(Vec3f res, Vec3f a, Vec3f b);
+void interpolate_vectors_s16(Vec3s res, Vec3s a, Vec3s b);
 
 #endif // MATH_UTIL_H

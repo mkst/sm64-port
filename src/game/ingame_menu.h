@@ -127,7 +127,7 @@ s16 get_str_x_pos_from_center(s16 centerPos, u8 *str, f32 scale);
 #ifdef VERSION_JP
 #define get_str_x_pos_from_center get_str_x_pos_from_center_scale
 #endif
-#if defined(VERSION_JP) || defined(VERSION_EU)
+#if defined(VERSION_JP) || defined(VERSION_EU) || defined(VERSION_SH)
 s16 get_str_x_pos_from_center_scale(s16 centerPos, u8 *str, f32 scale);
 #endif
 void print_hud_my_score_coins(s32 useCourseCoinScore, s8 fileNum, s8 courseNum, s16 x, s16 y);

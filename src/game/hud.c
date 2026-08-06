@@ -13,6 +13,7 @@
 #include "area.h"
 #include "save_file.h"
 #include "print.h"
+#include "src/puppycam/puppycam.h"
 
 /* @file hud.c
  * This file implements HUD rendering and power meter animations.
@@ -56,6 +57,20 @@ s32 sPowerMeterVisibleTimer = 0;
 static struct UnusedHUDStruct sUnusedHUDValues = { 0x00, 0x0A, 0x00 };
 
 static struct CameraHUD sCameraHUD = { CAM_STATUS_NONE };
+
+static u32 sPowerMeterLastRenderTimestamp;
+static s16 sPowerMeterLastY;
+static Gfx *sPowerMeterDisplayListPos;
+
+void patch_interpolated_hud(void) {
+    if (sPowerMeterDisplayListPos != NULL) {
+        Mtx *mtx = alloc_display_list(sizeof(Mtx));
+        guTranslate(mtx, (f32) sPowerMeterHUD.x, (f32) sPowerMeterHUD.y, 0);
+        gSPMatrix(sPowerMeterDisplayListPos, VIRTUAL_TO_PHYSICAL(mtx),
+              G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
+        sPowerMeterDisplayListPos = NULL;
+    }
+}
 
 /**
  * Renders a rgba16 16x16 glyph texture from a table list.
@@ -109,6 +124,7 @@ void render_power_meter_health_segment(s16 numHealthWedges) {
  */
 void render_dl_power_meter(s16 numHealthWedges) {
     Mtx *mtx;
+    f32 interpolatedY;
 
     mtx = alloc_display_list(sizeof(Mtx));
 
@@ -116,7 +132,15 @@ void render_dl_power_meter(s16 numHealthWedges) {
         return;
     }
 
-    guTranslate(mtx, (f32) sPowerMeterHUD.x, (f32) sPowerMeterHUD.y, 0);
+    if (gGlobalTimer == sPowerMeterLastRenderTimestamp + 1) {
+        interpolatedY = (sPowerMeterLastY + sPowerMeterHUD.y) / 2.0f;
+    } else {
+        interpolatedY = sPowerMeterHUD.y;
+    }
+    guTranslate(mtx, (f32) sPowerMeterHUD.x, interpolatedY, 0);
+    sPowerMeterLastY = sPowerMeterHUD.y;
+    sPowerMeterLastRenderTimestamp = gGlobalTimer;
+    sPowerMeterDisplayListPos = gDisplayListHead;
 
     gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(mtx++),
               G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
@@ -469,7 +493,8 @@ void render_hud(void) {
 
         if (hudDisplayFlags & HUD_DISPLAY_FLAG_CAMERA_AND_POWER) {
             render_hud_power_meter();
-            render_hud_camera_status();
+            if (!newcam_active)
+                render_hud_camera_status();
         }
 
         if (hudDisplayFlags & HUD_DISPLAY_FLAG_TIMER) {

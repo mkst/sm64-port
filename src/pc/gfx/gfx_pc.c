@@ -15,6 +15,7 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
 #include "gfx_screen_config.h"
+#include "../configfile.h"
 
 #define SUPPORT_CHECK(x) assert(x)
 
@@ -646,7 +647,7 @@ static void gfx_sp_pop_matrix(uint32_t count) {
 }
 
 static float gfx_adjust_x_for_aspect_ratio(float x) {
-    return x * (4.0f / 3.0f) / ((float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height);
+    return x * (4.0f / 3.0f) / gfx_current_dimensions.aspect_ratio;
 }
 
 static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *vertices) {
@@ -747,6 +748,8 @@ static void gfx_sp_vertex(size_t n_vertices, size_t dest_index, const Vtx *verti
             float fog_z = z * winv * rsp.fog_mul + rsp.fog_offset;
             if (fog_z < 0) fog_z = 0;
             if (fog_z > 255) fog_z = 255;
+            // Fog is disabled by making to blend completely transparently
+            if (!configFog) fog_z = 0;
             d->color.a = fog_z; // Use alpha variable to store fog factor
         } else {
             d->color.a = v->cn[3];
@@ -873,6 +876,13 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx) {
                 rdp.textures_changed[i] = false;
             }
             bool linear_filter = (rdp.other_mode_h & (3U << G_MDSFT_TEXTFILT)) != G_TF_POINT;
+#ifdef TARGET_GX
+            // Use Nearest Neighbour instead of Bilinear filtering
+            // It looks *BAD*. Don't use it
+            if (configForceNearest) {
+                linear_filter = false;
+            }
+#endif
             if (linear_filter != rendering_state.textures[i]->linear_filter || rdp.texture_tile.cms != rendering_state.textures[i]->cms || rdp.texture_tile.cmt != rendering_state.textures[i]->cmt) {
                 gfx_flush();
                 gfx_rapi->set_sampler_parameters(i, linear_filter, rdp.texture_tile.cms, rdp.texture_tile.cmt);
@@ -1702,6 +1712,9 @@ void gfx_start_frame(void) {
         gfx_current_dimensions.height = 1;
     }
     gfx_current_dimensions.aspect_ratio = (float)gfx_current_dimensions.width / (float)gfx_current_dimensions.height;
+#ifdef TARGET_GX
+    gfx_current_dimensions.aspect_ratio = configWidescreen ? (16.0f / 9.0f) : (4.0f / 3.0f);
+#endif
 }
 
 void gfx_run(Gfx *commands) {

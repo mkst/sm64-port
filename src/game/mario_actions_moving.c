@@ -1242,7 +1242,7 @@ s32 act_riding_shell_ground(struct MarioState *m) {
     }
 
     adjust_sound_for_speed(m);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
     reset_rumble_timers();
 #endif
     return FALSE;
@@ -1348,7 +1348,7 @@ s32 act_burning_ground(struct MarioState *m) {
     }
 
     m->marioBodyState->eyeState = MARIO_EYES_DEAD;
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
     reset_rumble_timers();
 #endif
     return FALSE;
@@ -1366,7 +1366,7 @@ void common_slide_action(struct MarioState *m, u32 endAction, u32 airAction, s32
     vec3f_copy(pos, m->pos);
     play_sound(SOUND_MOVING_TERRAIN_SLIDE + m->terrainSoundAddend, m->marioObj->header.gfx.cameraToObject);
 
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
     reset_rumble_timers();
 #endif
 
@@ -1492,7 +1492,7 @@ s32 act_crouch_slide(struct MarioState *m) {
 
 s32 act_slide_kick_slide(struct MarioState *m) {
     if (m->input & INPUT_A_PRESSED) {
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
         queue_rumble_data(5, 80);
 #endif
         return set_jumping_action(m, ACT_FORWARD_ROLLOUT, 0);
@@ -1524,7 +1524,7 @@ s32 act_slide_kick_slide(struct MarioState *m) {
 s32 stomach_slide_action(struct MarioState *m, u32 stopAction, u32 airAction, s32 animation) {
     if (m->actionTimer == 5) {
         if (!(m->input & INPUT_ABOVE_SLIDE) && (m->input & (INPUT_A_PRESSED | INPUT_B_PRESSED))) {
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
             queue_rumble_data(5, 80);
 #endif
             return drop_and_set_mario_action(
@@ -1560,7 +1560,7 @@ s32 act_hold_stomach_slide(struct MarioState *m) {
 
 s32 act_dive_slide(struct MarioState *m) {
     if (!(m->input & INPUT_ABOVE_SLIDE) && (m->input & (INPUT_A_PRESSED | INPUT_B_PRESSED))) {
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
         queue_rumble_data(5, 80);
 #endif
         return set_mario_action(m, m->forwardVel > 0.0f ? ACT_FORWARD_ROLLOUT : ACT_BACKWARD_ROLLOUT,

@@ -23,6 +23,14 @@
 #include "text_strings.h"
 #include "types.h"
 
+#ifdef TARGET_GX
+#include <stdbool.h>
+#include "pc/configfile.h"
+#include "pc/gx_shutdown.h"
+#include "thread6.h"
+#include "src/puppycam/puppycam.h"
+#endif
+
 u16 gDialogColorFadeTimer;
 s8 gLastDialogLineNum;
 s32 gDialogVariable;
@@ -111,6 +119,41 @@ u8 gMenuHoldKeyIndex = 0;
 u8 gMenuHoldKeyTimer = 0;
 s32 gDialogResponse = 0;
 
+static Gfx *sInterpolatedDialogOffsetPos;
+static f32 sInterpolatedDialogOffset;
+static Gfx *sInterpolatedDialogRotationPos;
+static f32 sInterpolatedDialogScale;
+static f32 sInterpolatedDialogRotation;
+static Gfx *sInterpolatedDialogZoomPos;
+
+void patch_interpolated_dialog(void) {
+    Mtx *matrix;
+
+    if (sInterpolatedDialogOffsetPos != NULL) {
+        matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
+        guTranslate(matrix, 0, sInterpolatedDialogOffset, 0);
+        gSPMatrix(sInterpolatedDialogOffsetPos, VIRTUAL_TO_PHYSICAL(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+        sInterpolatedDialogOffsetPos = NULL;
+    }
+    if (sInterpolatedDialogRotationPos != NULL) {
+        matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
+        guScale(matrix, 1.0 / sInterpolatedDialogScale, 1.0 / sInterpolatedDialogScale, 1.0f);
+        gSPMatrix(sInterpolatedDialogRotationPos++, VIRTUAL_TO_PHYSICAL(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+        matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
+        guRotate(matrix, sInterpolatedDialogRotation * 4.0f, 0, 0, 1.0f);
+        gSPMatrix(sInterpolatedDialogRotationPos, VIRTUAL_TO_PHYSICAL(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+        sInterpolatedDialogRotationPos = NULL;
+    }
+    if (sInterpolatedDialogZoomPos != NULL) {
+        matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
+        guTranslate(matrix, 65.0 - (65.0 / sInterpolatedDialogScale), (40.0 / sInterpolatedDialogScale) - 40, 0);
+        gSPMatrix(sInterpolatedDialogZoomPos++, VIRTUAL_TO_PHYSICAL(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+        matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
+        guScale(matrix, 1.0 / sInterpolatedDialogScale, 1.0 / sInterpolatedDialogScale, 1.0f);
+        gSPMatrix(sInterpolatedDialogZoomPos, VIRTUAL_TO_PHYSICAL(matrix), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+        sInterpolatedDialogZoomPos = NULL;
+    }
+}
 
 void create_dl_identity_matrix(void) {
     Mtx *matrix = (Mtx *) alloc_display_list(sizeof(Mtx));
@@ -947,6 +990,14 @@ void render_dialog_box_type(struct DialogEntry *dialog, s8 linesPerBox) {
     switch (gDialogBoxType) {
         case DIALOG_TYPE_ROTATE: // Renders a dialog black box with zoom and rotation
             if (gDialogBoxState == DIALOG_STATE_OPENING || gDialogBoxState == DIALOG_STATE_CLOSING) {
+                sInterpolatedDialogRotationPos = gDisplayListHead;
+                if (gDialogBoxState == DIALOG_STATE_OPENING) {
+                    sInterpolatedDialogScale = gDialogBoxScale - 2 / 2;
+                    sInterpolatedDialogRotation = gDialogBoxOpenTimer - 7.5f / 2;
+                } else {
+                    sInterpolatedDialogScale = gDialogBoxScale + 2 / 2;
+                    sInterpolatedDialogRotation = gDialogBoxOpenTimer + 7.5f / 2;
+                }
                 create_dl_scale_matrix(MENU_MTX_NOPUSH, 1.0 / gDialogBoxScale, 1.0 / gDialogBoxScale, 1.0f);
                 // convert the speed into angle
                 create_dl_rotation_matrix(MENU_MTX_NOPUSH, gDialogBoxOpenTimer * 4.0f, 0, 0, 1.0f);
@@ -955,6 +1006,12 @@ void render_dialog_box_type(struct DialogEntry *dialog, s8 linesPerBox) {
             break;
         case DIALOG_TYPE_ZOOM: // Renders a dialog white box with zoom
             if (gDialogBoxState == DIALOG_STATE_OPENING || gDialogBoxState == DIALOG_STATE_CLOSING) {
+                sInterpolatedDialogZoomPos = gDisplayListHead;
+                if (gDialogBoxState == DIALOG_STATE_OPENING) {
+                    sInterpolatedDialogScale = gDialogBoxScale - 2 / 2;
+                } else {
+                    sInterpolatedDialogScale = gDialogBoxScale + 2 / 2;
+                }
                 create_dl_translation_matrix(MENU_MTX_NOPUSH, 65.0 - (65.0 / gDialogBoxScale),
                                               (40.0 / gDialogBoxScale) - 40, 0);
                 create_dl_scale_matrix(MENU_MTX_NOPUSH, 1.0 / gDialogBoxScale, 1.0 / gDialogBoxScale, 1.0f);
@@ -1237,6 +1294,8 @@ void handle_dialog_text_and_pages(s8 colorMode, struct DialogEntry *dialog, s8 l
 #ifdef VERSION_EU
         gDialogY -= gDialogScrollOffsetY;
 #else
+        sInterpolatedDialogOffset = gDialogScrollOffsetY + dialog->linesPerBox;
+        sInterpolatedDialogOffsetPos = gDisplayListHead;
         create_dl_translation_matrix(MENU_MTX_NOPUSH, 0, (f32) gDialogScrollOffsetY, 0);
 #endif
     }
@@ -2597,6 +2656,297 @@ s32 gCourseDoneMenuTimer = 0;
 s32 gCourseCompleteCoins = 0;
 s8 gHudFlash = 0;
 
+#ifdef TARGET_GX
+// In-game options menu for Wii/GameCube
+// Action performed when A is pressed
+enum GxConfigAction {
+    GX_ACT_NONE,    // Standard toggle
+    GX_ACT_SAVE_QUIT,
+    GX_ACT_BACK,
+    GX_ACT_PUPPYCAM
+};
+
+enum GxRowKind {
+    GX_KIND_BOOL,       // bool* toggled with A, shown as ON/OFF
+    GX_KIND_INT,        // s16* adjusted left/right, shown as a number
+    GX_KIND_ACTION,     // performs an action on A
+    GX_KIND_WIDESCREEN, // cycles OFF/ON/AUTO/PILLARBOX with A
+#ifdef __wii__
+    GX_KIND_STORAGE // toggles configStorageDevice, shown as SD/USB, not present on GC for what I hope are obvious reasons
+#endif
+};
+
+struct GxConfigRow {
+    const char *label;
+    enum GxRowKind kind;
+    enum GxConfigAction action;
+    bool *boolVal;               // GX_KIND_BOOL
+    s16  *intVal;                // GX_KIND_INT
+    s16   minVal;                // GX_KIND_INT
+    s16   maxVal;                // GX_KIND_INT
+    s16   step;                  // GX_KIND_INT
+    bool  intOnOff;              // GX_KIND_INT: render 0/1 as OFF/ON
+};
+
+static const struct GxConfigRow sGxConfigLive[] = {
+    { .label = "60FPS",         .kind = GX_KIND_BOOL,   .boolVal = &config60Fps },
+    { .label = "WIDESCREEN",    .kind = GX_KIND_WIDESCREEN },
+    { .label = "INVERT CAMERA", .kind = GX_KIND_BOOL,   .boolVal = &configInvertCamera },
+    { .label = "RUMBLE",        .kind = GX_KIND_BOOL,   .boolVal = &configRumble },
+    { .label = "FOG",           .kind = GX_KIND_BOOL,   .boolVal = &configFog },
+    { .label = "FORCE NEAREST", .kind = GX_KIND_BOOL,   .boolVal = &configForceNearest },
+    { .label = "VI DEFLICKER",  .kind = GX_KIND_BOOL,   .boolVal = &configViDeflicker },
+#ifdef __wii__
+    { .label = "STORAGE",       .kind = GX_KIND_STORAGE },
+#endif
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
+};
+static const struct GxConfigRow sGxConfigPuppy[] = {
+    { .label = "ENABLED",       .kind = GX_KIND_BOOL,   .action = GX_ACT_PUPPYCAM, .boolVal = &configPuppycam },
+    { .label = "SENSITIVITY X", .kind = GX_KIND_INT,    .intVal = &newcam_sensitivityX, .minVal = 10, .maxVal = 500, .step = 5 },
+    { .label = "SENSITIVITY Y", .kind = GX_KIND_INT,    .intVal = &newcam_sensitivityY, .minVal = 10, .maxVal = 500, .step = 5 },
+    { .label = "INVERT X",      .kind = GX_KIND_INT,    .intVal = &newcam_invertX, .minVal = 0, .maxVal = 1, .step = 1, .intOnOff = TRUE },
+    { .label = "INVERT Y",      .kind = GX_KIND_INT,    .intVal = &newcam_invertY, .minVal = 0, .maxVal = 1, .step = 1, .intOnOff = TRUE },
+    { .label = "CENTERING",     .kind = GX_KIND_INT,    .intVal = &newcam_aggression, .minVal = 0, .maxVal = 100, .step = 5 },
+    { .label = "PANNING",       .kind = GX_KIND_INT,    .intVal = &newcam_panlevel, .minVal = 0, .maxVal = 100, .step = 5 },
+    { .label = "DECEL SPEED",   .kind = GX_KIND_INT,    .intVal = &newcam_degrade, .minVal = 5, .maxVal = 100, .step = 5 },
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action = GX_ACT_BACK },
+};
+static const struct GxConfigRow sGxConfigRestart[] = {
+    { .label = "240P",          .kind = GX_KIND_BOOL,   .boolVal = &config240p },
+    { .label = "ANTIALIAS",     .kind = GX_KIND_BOOL,   .boolVal = &configAntialias },
+    { .label = "SAVE AND RESTART", .kind = GX_KIND_ACTION, .action  = GX_ACT_SAVE_QUIT },
+    { .label = "BACK",          .kind = GX_KIND_ACTION, .action  = GX_ACT_BACK },
+};
+
+struct GxConfigTab {
+    const char *title;
+    const struct GxConfigRow *rows;
+    s8 numRows;
+    bool needsRestart;
+};
+static const struct GxConfigTab sGxConfigTabs[] = {
+    { "LIVE OPTIONS",    sGxConfigLive,    ARRAY_COUNT(sGxConfigLive),    FALSE },
+    { "PUPPYCAM",        sGxConfigPuppy,   ARRAY_COUNT(sGxConfigPuppy),   FALSE },
+    { "RESTART OPTIONS", sGxConfigRestart, ARRAY_COUNT(sGxConfigRestart), TRUE  },
+};
+#define GX_CFG_NUM_TABS ARRAY_COUNT(sGxConfigTabs)
+
+static s8 sGxConfigOpen = 0;
+static s8 sGxConfigTab = 0;
+static s8 sGxConfigSel = 1;
+static f32 sGxConfigAdjustTimer = 0;
+
+// Convert an ASCII string into the dialogue font's glyph encoding
+static void gx_ascii_to_dialog(u8 *dst, const char *src) {
+    while (*src != '\0') {
+        char c = *src++;
+        u8 g;
+        if (c >= '0' && c <= '9')      g = c - '0';
+        else if (c >= 'A' && c <= 'Z') g = c - 'A' + 0x0A;
+        else                           g = DIALOG_CHAR_SPACE;
+        *dst++ = g;
+    }
+    *dst = DIALOG_CHAR_TERMINATOR;
+}
+
+static void gx_print_ascii(s16 x, s16 y, const char *str) {
+    u8 buf[40];
+    gx_ascii_to_dialog(buf, str);
+    print_generic_string(x, y, buf);
+}
+
+static void gx_print_int(s16 x, s16 y, s32 val) {
+    char buf[12];
+    char *p = buf + sizeof(buf) - 1;
+    u32 v = (val < 0) ? 0 : (u32) val;
+    *p = '\0';
+    do {
+        *--p = '0' + (v % 10);
+        v /= 10;
+    } while (v != 0);
+    gx_print_ascii(x, y, p);
+}
+
+static void render_pause_gx_config(void) {
+    const s16 x = 56;
+    const s16 yTop = 172;
+    const s16 labelX = x + 12;  // left edge of each option label
+    const s16 valueX = x + 144; // left edge of the value column
+
+    const struct GxConfigTab *tab = &sGxConfigTabs[sGxConfigTab];
+    // Tighten the line spacing when a tab has a lot of rows (read the puppycam tab)
+    const s16 spacing = (tab->numRows > 7) ? 13 : 16;
+
+    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &sGxConfigSel, 1, tab->numRows);
+
+    if (tab->rows == sGxConfigPuppy) {
+        newcam_save_settings();
+    }
+
+    shade_screen();
+
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+
+    gx_print_ascii(x, yTop, tab->title);
+    for (int i = 0; i < tab->numRows; i++) {
+        const struct GxConfigRow *row = &tab->rows[i];
+        s16 ry = yTop - 28 - i * spacing;
+        gx_print_ascii(labelX, ry, row->label);
+        if (row->kind == GX_KIND_BOOL) {
+            gx_print_ascii(valueX, ry, *row->boolVal ? "ON" : "OFF");
+        } else if (row->kind == GX_KIND_WIDESCREEN) {
+            gx_print_ascii(valueX, ry,
+                           configWidescreenMode == WIDESCREEN_ON        ? "ON" :
+                           configWidescreenMode == WIDESCREEN_AUTO      ? "AUTO" :
+                           configWidescreenMode == WIDESCREEN_PILLARBOX ? "PILLARBOX" : "OFF");
+#ifdef __wii__
+        } else if (row->kind == GX_KIND_STORAGE) {
+            gx_print_ascii(valueX, ry, configStorageDevice == STORAGE_DEVICE_USB ? "USB" : "SD");
+#endif
+        } else if (row->kind == GX_KIND_INT) {
+            if (row->intOnOff) {
+                gx_print_ascii(valueX, ry, *row->intVal ? "ON" : "OFF");
+            } else {
+                gx_print_int(valueX, ry, *row->intVal);
+            }
+        }
+    }
+
+    s16 footerY = yTop - 28 - tab->numRows * spacing - 6;
+    gx_print_ascii(40, footerY, "L R   SWITCH TAB");
+    if (tab->needsRestart) {
+        gx_print_ascii(40, footerY - spacing, "RESTART TO APPLY CHANGES");
+    }
+
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+
+    // selection arrow
+    create_dl_translation_matrix(MENU_MTX_PUSH, x + 2,
+                                 (yTop - 28 - (sGxConfigSel - 1) * spacing) - 2, 0);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+    gSPDisplayList(gDisplayListHead++, dl_draw_triangle);
+    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+    if (gPlayer3Controller->buttonPressed & (L_TRIG | R_TRIG | L_JPAD | R_JPAD)) {
+        sGxConfigTab = (sGxConfigTab + 1) % GX_CFG_NUM_TABS;
+        sGxConfigSel = 1;
+        sGxConfigAdjustTimer = 0;
+        play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+        return;
+    }
+
+    const struct GxConfigRow *row = &tab->rows[sGxConfigSel - 1];
+
+    // Left/right adjustment for numeric rows
+    if (row->kind == GX_KIND_INT) {
+        s16 dir = 0;
+        if (gPlayer3Controller->rawStickX > 60 || (gPlayer3Controller->buttonDown & R_CBUTTONS)) {
+            dir = 1;
+        } else if (gPlayer3Controller->rawStickX < -60 || (gPlayer3Controller->buttonDown & L_CBUTTONS)) {
+            dir = -1;
+        }
+
+        if (dir != 0) {
+            sGxConfigAdjustTimer -= 1;
+            if (sGxConfigAdjustTimer <= 0) {
+                s16 step = row->step;
+                if (gPlayer3Controller->buttonDown & A_BUTTON) step *= 5; // hold A to adjust faster
+
+                s32 val = *row->intVal + dir * step;
+                if (val < row->minVal) val = row->minVal;
+                if (val > row->maxVal) val = row->maxVal;
+                *row->intVal = (s16) val;
+
+                play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+                sGxConfigAdjustTimer += 3;
+            }
+        } else {
+            sGxConfigAdjustTimer = 0;
+        }
+    }
+
+    if (gPlayer3Controller->buttonPressed & A_BUTTON) {
+        if (row->kind == GX_KIND_BOOL) {
+            *row->boolVal = !*row->boolVal;
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+            if (row->boolVal == &configRumble) {
+                // Rumble on enable
+                if (configRumble) {
+                    queue_rumble_data(5, 80);
+                } else {
+                    cancel_rumble();
+                }
+            }
+            if (row->action == GX_ACT_PUPPYCAM) {
+                newcam_set_active(configPuppycam);
+            }
+        } else if (row->kind == GX_KIND_WIDESCREEN) {
+#ifdef __wii__
+            // OFF -> ON -> AUTO -> PILLARBOX
+            configWidescreenMode = (configWidescreenMode + 1) % 4;
+#else
+            configWidescreenMode = (configWidescreenMode == WIDESCREEN_OFF) ? WIDESCREEN_ON
+                                 : (configWidescreenMode == WIDESCREEN_ON)  ? WIDESCREEN_PILLARBOX
+                                 : WIDESCREEN_OFF;
+#endif
+            configfile_resolve_widescreen();
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+#ifdef __wii__
+        } else if (row->kind == GX_KIND_STORAGE) {
+            // Move config and save to the other device safely
+            unsigned int target = (configStorageDevice == STORAGE_DEVICE_USB)
+                                      ? STORAGE_DEVICE_SD : STORAGE_DEVICE_USB;
+            configfile_switch_storage_device(target);
+            play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+#endif
+        } else if (row->kind == GX_KIND_ACTION) {
+            switch (row->action) {
+                case GX_ACT_SAVE_QUIT:
+                    // Leaving from here would tear the console down in the middle of
+                    // building this frame's display list, which hangs a GameCube.
+                    gx_shutdown_request_exit();
+                    break;
+                case GX_ACT_BACK:
+                    sGxConfigOpen = 0;
+                    play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
+                    break;
+                default:
+                    break;
+            }
+        }
+    } else if (gPlayer3Controller->buttonPressed & (B_BUTTON | Z_TRIG)) {
+        sGxConfigOpen = 0;
+        play_sound(SOUND_MENU_PAUSE_2, gDefaultSoundArgs);
+    }
+}
+
+// Small prompt on the pause screen advertising the options menu
+static void render_pause_gx_hint(void) {
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gDialogTextAlpha);
+    gx_print_ascii(18, 16, "Z OPTIONS");
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+}
+
+static bool gx_config_menu_update(void) {
+    if (sGxConfigOpen) {
+        render_pause_gx_config();
+        return true;
+    }
+    if (gPlayer3Controller->buttonPressed & Z_TRIG) {
+        sGxConfigTab = 0;
+        sGxConfigSel = 1;
+        sGxConfigOpen = 1;
+        play_sound(SOUND_MENU_CHANGE_SELECT, gDefaultSoundArgs);
+    }
+    return false;
+}
+#endif
+
 s16 render_pause_courses_and_castle(void) {
     s16 num;
 
@@ -2624,6 +2974,9 @@ s16 render_pause_courses_and_castle(void) {
             }
             break;
         case DIALOG_STATE_VERTICAL:
+#ifdef TARGET_GX
+            if (gx_config_menu_update()) break;
+#endif
             shade_screen();
             render_pause_my_score_coins();
             render_pause_red_coins();
@@ -2631,6 +2984,10 @@ s16 render_pause_courses_and_castle(void) {
             if (gMarioStates[0].action & ACT_FLAG_PAUSE_EXIT) {
                 render_pause_course_options(99, 93, &gDialogLineNum, 15);
             }
+
+#ifdef TARGET_GX
+            render_pause_gx_hint();
+#endif
 
 #ifdef VERSION_EU
             if (gPlayer3Controller->buttonPressed & (A_BUTTON | Z_TRIG | START_BUTTON))
@@ -2654,10 +3011,17 @@ s16 render_pause_courses_and_castle(void) {
             }
             break;
         case DIALOG_STATE_HORIZONTAL:
+#ifdef TARGET_GX
+            if (gx_config_menu_update()) break;
+#endif
             shade_screen();
             print_hud_pause_colorful_str();
             render_pause_castle_menu_box(160, 143);
             render_pause_castle_main_strings(104, 60);
+
+#ifdef TARGET_GX
+            render_pause_gx_hint();
+#endif
 
 #ifdef VERSION_EU
             if (gPlayer3Controller->buttonPressed & (A_BUTTON | Z_TRIG | START_BUTTON))

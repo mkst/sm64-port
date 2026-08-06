@@ -1,7 +1,50 @@
 #ifndef CONFIGFILE_H
 #define CONFIGFILE_H
 
+#define CONFIG_FILE "sm64config.txt"
+
+#ifdef __wii__
+// Save is always located under /apps/sm64 now on Wii
+#define SAVE_FILE "sm64_save_file.bin"
+
+enum StorageDevice {
+    STORAGE_DEVICE_SD  = 0,
+    STORAGE_DEVICE_USB = 1,
+};
+
+extern unsigned int configStorageDevice;
+
+const char *get_storage_path(const char *filename);
+
+void configfile_switch_storage_device(unsigned int newDevice);
+#endif
+
+// Stored preference for configWidescreenMode
+#define WIDESCREEN_OFF       0u
+#define WIDESCREEN_ON        1u
+#define WIDESCREEN_AUTO      2u // follow the console's system 16:9 setting on Wii only
+#define WIDESCREEN_PILLARBOX 3u // Proper 4:3 on a 16:9 display. Doesn't work on some displays
+
 extern bool         configFullscreen;
+extern bool         config60Fps;
+extern bool         configWidescreen;
+extern unsigned int configWidescreenMode;
+extern bool         configPillarbox;
+extern bool         config240p;
+extern bool         configAntialias;
+extern bool         configInvertCamera;
+extern bool         configRumble;
+extern bool         configFog;
+extern bool         configForceNearest;
+extern bool         configViDeflicker;
+extern bool         configPuppycam;
+extern unsigned int puppycam_sensitivityX;
+extern unsigned int puppycam_sensitivityY;
+extern unsigned int puppycam_invertX;
+extern unsigned int puppycam_invertY;
+extern unsigned int puppycam_degrade;
+extern unsigned int puppycam_aggression;
+extern unsigned int puppycam_panlevel;
 extern unsigned int configKeyA;
 extern unsigned int configKeyB;
 extern unsigned int configKeyStart;
@@ -21,5 +64,7 @@ extern unsigned int configKeyStickRight;
 
 void configfile_load(const char *filename);
 void configfile_save(const char *filename);
+void configfile_resolve_widescreen(void);
+bool configfile_console_is_widescreen(void);  // true when the console's system setting is 16:9 (Wii)
 
 #endif

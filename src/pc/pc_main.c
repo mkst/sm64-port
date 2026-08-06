@@ -21,6 +21,7 @@
 #ifdef TARGET_GX
 #include "gfx/gfx_gx_wm.h"
 #include "gfx/gfx_gx.h"
+#include "gx_shutdown.h"
 #endif
 
 #include "audio/audio_api.h"
@@ -38,8 +39,6 @@
 #include "configfile.h"
 
 #include "compat.h"
-
-#define CONFIG_FILE "sm64config.txt"
 
 OSMesg D_80339BEC;
 OSMesgQueue gSIEventMesgQueue;
@@ -68,9 +67,34 @@ void set_vblank_handler(UNUSED s32 index, UNUSED struct VblankHandler *handler, 
 static uint8_t inited = 0;
 
 #include "game/game_init.h" // for gGlobalTimer
+
+// Run once between two frames at 60fps or once before a frame at 30fps.
+static void patch_interpolations(void) {
+    extern void mtx_patch_interpolated(void);
+    extern void patch_screen_transition_interpolated(void);
+    extern void patch_title_screen_scales(void);
+    extern void patch_interpolated_dialog(void);
+    extern void patch_interpolated_hud(void);
+    extern void patch_interpolated_paintings(void);
+    extern void patch_interpolated_bubble_particles(void);
+    extern void patch_interpolated_snow_particles(void);
+    mtx_patch_interpolated();
+    patch_screen_transition_interpolated();
+    patch_title_screen_scales();
+    patch_interpolated_dialog();
+    patch_interpolated_hud();
+    patch_interpolated_paintings();
+    patch_interpolated_bubble_particles();
+    patch_interpolated_snow_particles();
+}
+
 void send_display_list(struct SPTask *spTask) {
     if (!inited) {
         return;
+    }
+    if (!config60Fps) {
+        // At 30fps only real frames are shown
+        patch_interpolations();
     }
     gfx_run((Gfx *)spTask->task.t.data_ptr);
 }
@@ -85,12 +109,16 @@ void send_display_list(struct SPTask *spTask) {
 #define SAMPLES_LOW 528
 #endif
 
+// EU picks its audio frame length from gRefreshRate.
+static u32 samples_high = SAMPLES_HIGH;
+static u32 samples_low = SAMPLES_LOW;
+
 void produce_one_frame(void) {
     gfx_start_frame();
     game_loop_one_iteration();
 
     int samples_left = audio_api->buffered();
-    u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? SAMPLES_HIGH : SAMPLES_LOW;
+    u32 num_audio_samples = samples_left < audio_api->get_desired_buffered() ? samples_high : samples_low;
     //printf("Audio samples: %d %u\n", samples_left, num_audio_samples);
     s16 audio_buffer[SAMPLES_HIGH * 2 * 2];
     for (int i = 0; i < 2; i++) {
@@ -104,6 +132,13 @@ void produce_one_frame(void) {
     audio_api->play((u8 *)audio_buffer, 2 * num_audio_samples * 4);
 
     gfx_end_frame();
+
+    if (config60Fps) {
+        gfx_start_frame();
+        patch_interpolations();
+        send_display_list(gGfxSPTask);
+        gfx_end_frame();
+    }
 }
 
 #ifdef TARGET_WEB
@@ -158,6 +193,7 @@ void main_func(void) {
     gEffectsMemoryPool = mem_pool_init(0x4000, MEMORY_POOL_LEFT);
 
     configfile_load(CONFIG_FILE);
+    configfile_resolve_widescreen();
     atexit(save_config);
 
 #ifdef TARGET_WEB
@@ -220,6 +256,13 @@ void main_func(void) {
         audio_api = &audio_null;
     }
 
+#if defined(TARGET_GX) && defined(VERSION_EU)
+    if (gfx_gx_wm_get_field_rate() == 60) {
+        samples_high = 544;
+        samples_low = 528;
+    }
+#endif
+
     audio_init();
     sound_init();
 
@@ -231,8 +274,14 @@ void main_func(void) {
     inited = 1;
 #else
     inited = 1;
+#ifdef TARGET_GX
+    gx_shutdown_init(save_config);
+#endif
     while (1) {
         wm_api->main_loop(produce_one_frame);
+#ifdef TARGET_GX
+        gx_shutdown_poll();
+#endif
     }
 #endif
 }

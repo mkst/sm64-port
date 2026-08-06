@@ -678,7 +678,7 @@ void initiate_painting_warp(void) {
 
                 play_sound(SOUND_MENU_STAR_SOUND, gDefaultSoundArgs);
                 fadeout_music(398);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
                 queue_rumble_data(80, 70);
                 func_sh_8024C89C(1);
 #endif
@@ -992,7 +992,7 @@ s32 play_mode_normal(void) {
             set_play_mode(PLAY_MODE_CHANGE_AREA);
         } else if (pressed_pause()) {
             lower_background_noise(1);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
             cancel_rumble();
 #endif
             gCameraMovementFlags |= CAM_MOVE_PAUSE_SCREEN;
@@ -1205,7 +1205,7 @@ s32 init_level(void) {
             set_background_music(gCurrentArea->musicParam, gCurrentArea->musicParam2, 0);
         }
     }
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
     if (gCurrDemoInput == NULL) {
         cancel_rumble();
     }

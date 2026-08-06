@@ -10,6 +10,9 @@
 #include "gfx_cc.h"
 #include "gfx_rendering_api.h"
 #include "gfx_gx_wm.h"
+#include "gfx_screen_config.h"
+
+#include "../configfile.h"
 
 #define TEXTURE_POOL_SIZE 4096
 #define DEFAULT_FIFO_SIZE 256 * 1024
@@ -45,6 +48,7 @@ static unsigned char gp_fifo[DEFAULT_FIFO_SIZE] __attribute__((aligned(32)));
 
 #define GX_NEAR_PLANE 16.0f
 #define GX_FAR_PLANE 24000.0f
+#define GX_FAR_PLANE_EXTENDED 60000.0f // Far plane used when fog is turned off
 #define GX_DECAL_BIAS 0.0001f
 #define GX_TEXTURE_EDGE_ALPHA_THRESHOLD 76
 
@@ -250,7 +254,8 @@ static void gx_set_alpha_formula(uint8_t stage, const uint8_t c[4],
 }
 
 // http://amnoid.de/gc/tev.html
-static void update_tev(struct ShaderProgram *prg)
+// Sets up the colour-combiner TEV stages and returns how many stages it used.
+static int update_tev_combiner(struct ShaderProgram *prg)
 {
     const uint8_t *color = prg->cc_features.c[0];
     bool has_tex = prg->cc_features.used_textures[0] || prg->cc_features.used_textures[1];
@@ -291,7 +296,7 @@ static void update_tev(struct ShaderProgram *prg)
                              prg->cc_features.do_multiply[1],
                              prg->cc_features.do_mix[1],
                              ras_input, prev_input);
-        return;
+        return 2;
     }
 
     if (formula_num_inputs(color) == 2 && prg->cc_features.do_multiply[0]
@@ -315,7 +320,7 @@ static void update_tev(struct ShaderProgram *prg)
                              prg->cc_features.do_multiply[1],
                              prg->cc_features.do_mix[1],
                              ras_input, prev_input);
-        return;
+        return 2;
     }
 
     int ras_input = formula_first_input(color);
@@ -338,6 +343,35 @@ static void update_tev(struct ShaderProgram *prg)
                          prg->cc_features.do_multiply[1],
                          prg->cc_features.do_mix[1],
                          ras_input, -1);
+    return 1;
+}
+
+// Apply distance fog if the stage uses it
+static void update_tev(struct ShaderProgram *prg)
+{
+    int num_chans = prg->cc_features.num_inputs > 2 ? 2 : prg->cc_features.num_inputs;
+    bool fog = prg->cc_features.opt_fog && num_chans < 2;
+
+    int stages = update_tev_combiner(prg);
+
+    if (fog)
+    {
+        uint8_t fog_chan = num_chans; // next free colour channel
+
+        GX_SetNumChans(num_chans + 1);
+        GX_SetChanCtrl(GX_COLOR0A0 + fog_chan, GX_DISABLE, GX_SRC_VTX, GX_SRC_VTX,
+                       GX_LIGHTNULL, GX_DF_NONE, GX_AF_NONE);
+
+        uint8_t stage = GX_TEVSTAGE0 + stages;
+        GX_SetNumTevStages(stages + 1);
+        GX_SetTevOrder(stage, GX_TEXCOORDNULL, GX_TEXMAP_NULL,
+                       gx_color_channel_for_input(fog_chan));
+        // colour = lerp(prev, fog colour, fog factor); alpha passes through
+        GX_SetTevColorIn(stage, GX_CC_CPREV, GX_CC_RASC, GX_CC_RASA, GX_CC_ZERO);
+        GX_SetTevColorOp(stage, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+        GX_SetTevAlphaIn(stage, GX_CA_ZERO, GX_CA_ZERO, GX_CA_ZERO, GX_CA_APREV);
+        GX_SetTevAlphaOp(stage, GX_TEV_ADD, GX_TB_ZERO, GX_CS_SCALE_1, GX_TRUE, GX_TEVPREV);
+    }
 }
 
 static void update_vtx_desc(struct ShaderProgram *prg)
@@ -356,6 +390,12 @@ static void update_vtx_desc(struct ShaderProgram *prg)
     {
         GX_SetVtxDesc(GX_VA_CLR0 + i, GX_DIRECT);
         GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0 + i, GX_CLR_RGBA, GX_RGBA8, 0);
+    }
+    // extra colour channel carrying the fog colour (rgb) + fog factor (a)
+    if (prg->cc_features.opt_fog && num_chans < 2)
+    {
+        GX_SetVtxDesc(GX_VA_CLR0 + num_chans, GX_DIRECT);
+        GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0 + num_chans, GX_CLR_RGBA, GX_RGBA8, 0);
     }
     // tex coords
     if (has_tex)
@@ -607,12 +647,34 @@ static void gfx_gx_set_zmode_decal(bool zmode_decal)
     zmode_decal_on = zmode_decal;
 }
 
+// If for some reason you like stretched 4:3 this is why this isn't forced.
+// You're wrong, but I'll give you this at least.
+static bool gx_pillarbox_active(void)
+{
+    return configPillarbox && !configWidescreen;
+}
+
+static int gx_map_x(int x, int fbWidth)
+{
+    if (gx_pillarbox_active())
+        return fbWidth / 8 + x * fbWidth * 3 / (DESIRED_SCREEN_WIDTH * 4);
+    return x * fbWidth / DESIRED_SCREEN_WIDTH;
+}
+
+static int gx_map_w(int width, int fbWidth)
+{
+    if (gx_pillarbox_active())
+        return width * fbWidth * 3 / (DESIRED_SCREEN_WIDTH * 4);
+    return width * fbWidth / DESIRED_SCREEN_WIDTH;
+}
+
 static void gfx_gx_set_viewport(int x, int y, int width, int height)
 {
-    vp_x = x;
-    vp_y = y;
-    vp_w = width;
-    vp_h = height;
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+    vp_x = gx_map_x(x, rmode->fbWidth);
+    vp_w = gx_map_w(width, rmode->fbWidth);
+    vp_y = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    vp_h = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
     gx_issue_viewport(1.0f);
 }
 
@@ -621,7 +683,11 @@ static void gfx_gx_set_scissor(int x, int y, int width, int height)
     // OpenGL has a bottom left origin, GX has top right
     // This took me hours to find out
     GXRModeObj *rmode = gfx_gx_wm_get_rmode();
-    GX_SetScissor(x, rmode->efbHeight - y - height, width, height);
+    int sx = gx_map_x(x, rmode->fbWidth);
+    int sw = gx_map_w(width, rmode->fbWidth);
+    int sy = y * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    int sh = height * rmode->efbHeight / DESIRED_SCREEN_HEIGHT;
+    GX_SetScissor(sx, rmode->efbHeight - sy - sh, sw, sh);
 }
 
 static void gfx_gx_set_use_alpha(bool use_alpha)
@@ -691,6 +757,8 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
                                 -buf_vbo[offset + 3]);
             }
             int vtxOffs = 4;
+            bool emit_fog = hasFog && num_inputs < 2;
+            float fog_r = 0.0f, fog_g = 0.0f, fog_b = 0.0f, fog_a = 0.0f;
 
             if (hasTex)
             {
@@ -699,7 +767,13 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
                 vtxOffs += 2;
             }
             if (hasFog)
-                vtxOffs += 4; // TODO: same as 3DS
+            {
+                fog_r = buf_vbo[offset + vtxOffs + 0];
+                fog_g = buf_vbo[offset + vtxOffs + 1];
+                fog_b = buf_vbo[offset + vtxOffs + 2];
+                fog_a = buf_vbo[offset + vtxOffs + 3]; // fog factor
+                vtxOffs += 4;
+            }
             for (int j = 0; j < num_inputs; j++)
             {
                 if (j < 2)
@@ -711,6 +785,11 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
                 }
                 vtxOffs += hasAlpha ? 4 : 3;
             }
+            if (emit_fog)
+            {
+                GX_Color4u8(float_to_u8(fog_r), float_to_u8(fog_g),
+                            float_to_u8(fog_b), float_to_u8(fog_a));
+            }
             if (hasTex)
             {
                 GX_TexCoord2f32(s, t);
@@ -719,6 +798,13 @@ static void gfx_gx_draw_triangles(float buf_vbo[], UNUSED size_t buf_vbo_len, si
         }
     }
     GX_End();
+}
+
+static void gx_apply_copy_filter(void)
+{
+    GXRModeObj *rmode = gfx_gx_wm_get_rmode();
+    GX_SetCopyFilter(rmode->aa, rmode->sample_pattern,
+                     configViDeflicker ? GX_TRUE : GX_FALSE, rmode->vfilter);
 }
 
 // Configure the embedded framebuffer and the EFB->XFB copy
@@ -737,7 +823,7 @@ static void gx_setup_efb(void)
     GX_SetDispCopyYScale((f32)rmode->xfbHeight / (f32)rmode->efbHeight);
     GX_SetDispCopySrc(0, 0, rmode->fbWidth, rmode->efbHeight);
     GX_SetDispCopyDst(rmode->fbWidth, rmode->xfbHeight);
-    GX_SetCopyFilter(rmode->aa, rmode->sample_pattern, GX_TRUE, rmode->vfilter);
+    gx_apply_copy_filter();
     GX_SetFieldMode(rmode->field_rendering, ((rmode->viHeight == 2 * rmode->xfbHeight) ? GX_ENABLE : GX_DISABLE));
 
     if (rmode->aa)
@@ -751,7 +837,7 @@ static void gx_setup_efb(void)
 static void gx_build_projection(void)
 {
     const f32 n = GX_NEAR_PLANE;
-    const f32 f = GX_FAR_PLANE;
+    const f32 f = configFog ? GX_FAR_PLANE : GX_FAR_PLANE_EXTENDED;
 
     memset(gx_perspective_mtx, 0, sizeof(gx_perspective_mtx));
     gx_perspective_mtx[0][0] = 1.0f;
@@ -800,6 +886,24 @@ static void gfx_gx_on_resize(void)
 static void gfx_gx_start_frame(void)
 {
     GX_SetCopyClear((GXColor){ 0, 0, 0, 0xff }, GX_MAX_Z24);
+
+    // Live apply fog config changes
+    static bool prev_fog = true;
+    static bool projection_initialized = false;
+    if (!projection_initialized || configFog != prev_fog) {
+        prev_fog = configFog;
+        projection_initialized = true;
+        gx_build_projection();
+    }
+
+    // Apply deflicker filter
+    static bool prev_deflicker = true;
+    static bool deflicker_initialized = false;
+    if (!deflicker_initialized || configViDeflicker != prev_deflicker) {
+        prev_deflicker = configViDeflicker;
+        deflicker_initialized = true;
+        gx_apply_copy_filter();
+    }
 
     GX_InvalidateTexAll();
     set_z_mode();

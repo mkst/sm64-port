@@ -32,6 +32,7 @@
 #include "save_file.h"
 #include "sound_init.h"
 #include "thread6.h"
+#include "src/puppycam/puppycam.h"
 
 u32 unused80339F10;
 s8 filler80339F1C[20];
@@ -1301,7 +1302,10 @@ void update_mario_joystick_inputs(struct MarioState *m) {
     }
 
     if (m->intendedMag > 0.0f) {
-        m->intendedYaw = atan2s(-controller->stickY, controller->stickX) + m->area->camera->yaw;
+        if (gLakituState.mode != CAM_MODE_NEWCAM)
+            m->intendedYaw = atan2s(-controller->stickY, controller->stickX) + m->area->camera->yaw;
+        else
+            m->intendedYaw = atan2s(-controller->stickY, controller->stickX)-newcam_yaw+0x4000;
         m->input |= INPUT_NONZERO_ANALOG;
     } else {
         m->intendedYaw = m->faceAngle[1];
@@ -1495,7 +1499,7 @@ void update_mario_health(struct MarioState *m) {
         // Play a noise to alert the player when Mario is close to drowning.
         if (((m->action & ACT_GROUP_MASK) == ACT_GROUP_SUBMERGED) && (m->health < 0x300)) {
             play_sound(SOUND_MOVING_ALMOST_DROWNING, gDefaultSoundArgs);
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
             if (!gRumblePakTimer) {
                 gRumblePakTimer = 36;
                 if (is_rumble_finished_and_queue_empty()) {
@@ -1609,7 +1613,7 @@ void mario_update_hitbox_and_cap_model(struct MarioState *m) {
     struct MarioBodyState *bodyState = m->marioBodyState;
     s32 flags = update_and_return_cap_flags(m);
 
-    if (flags & MARIO_VANISH_CAP) {
+    if (flags & MARIO_VANISH_CAP || newcam_xlu < 255) {
         bodyState->modelState = MODEL_STATE_NOISE_ALPHA;
     }
 
@@ -1677,7 +1681,7 @@ static void debug_update_mario_cap(u16 button, s32 flags, u16 capTimer, u16 capM
     }
 }
 
-#ifdef VERSION_SH
+#if defined(VERSION_SH) || defined(TARGET_GX)
 void func_sh_8025574C(void) {
     if (gMarioState->particleFlags & PARTICLE_HORIZONTAL_STAR) {
         queue_rumble_data(5, 80);
