@@ -54,6 +54,7 @@ SOFTWARE.
 #include <cstdarg>
 #include <cctype>
 #include <cstring>
+#include <cstdint>
 #include <cmath>
 #include <clocale>
 
