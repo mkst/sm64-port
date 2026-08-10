@@ -136,34 +136,28 @@ make cia # optional if you want a .cia
 
 WSL is the preferred route, but you can also use MSYS2 (MINGW64) to compile.
 
-For each instruction copy and paste the contents into the **MING64** console.
+For each instruction copy and paste the contents into the **MSYS2 MinGW 64-bit** console.
 
-**Get MSYS2:**
+**Install and Configure MSYS2:**
 
 Navigate to https://www.msys2.org/ and download the installer.
 
-**Install and Run MINGW64:**
+Install and not run yet (unchecked the box that says "Run MSYS now").
+
+Add the keyserver for package validation:
 
 ```
-Next, Next, Next, Finish (keep the box checked to "Run MSYS 64bit now").
-```
-
-**Add keyserver for package validation:**
-
-```sh
 pacman-key --recv BC26F752D25B92CE272E0F44F7FD5492264BB9D0 --keyserver keyserver.ubuntu.com
 pacman-key --lsign BC26F752D25B92CE272E0F44F7FD5492264BB9D0
 ```
+You can paste the commands to MINGW64 with _"Shift" + "Insert"_. It's safer to do one line at a time during this guide.
 
-**Add DevKitPro keyring:**
-
-```sh
+Add the DevKitPro keyring:
+```
 pacman -U --noconfirm https://downloads.devkitpro.org/devkitpro-keyring.pkg.tar.xz
 ```
-
-**Add DevKitPro package repositories:**
-
-```sh
+Add the DevKitPro package repositories:
+```
 cat <<EOF >> /etc/pacman.conf
 [dkp-libs]
 Server = https://downloads.devkitpro.org/packages
@@ -171,72 +165,85 @@ Server = https://downloads.devkitpro.org/packages
 Server = https://downloads.devkitpro.org/packages/windows
 EOF
 ```
-
-**Update dependencies:**
-
-```sh
+Update dependencies:
+```
 pacman -Syu --noconfirm
 ```
+(Note: MINGW64 may close itself when done. If it does, find MSYS2 MinGW 64bit in your Start Menu and open it again.)
 
-MINGW64 may close itself when done, if it does, find `MSYS2 MinGW 64bit` in your Start Menu and open again.
+**Install Build Tools:**
 
-**Install Dependencies:**
+Install the necessary 3DS development packages and standard utilities:
 
-```sh
+```
 pacman -S 3ds-dev git make python3 mingw-w64-x86_64-gcc unzip --noconfirm
 ```
 
-**Download makerom:**
+Download and extract makerom:
 
-```sh
-wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.17/makerom-v0.17-win_x86_64.zip
 ```
-
-**Extract makerom:**
-
-```sh
+wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.17/makerom-v0.17-win_x86_64.zip
 unzip -d /opt/devkitpro/tools/bin/ makerom-v0.17-win_x86_64.zip
 ```
 
-**Setup Environment Variables:**
-
-```sh
-export PATH="$PATH:/opt/devkitpro/tools/bin" && echo "OK!"
-export DEVKITPRO=/opt/devkitpro && echo "OK!"
-export DEVKITARM=/opt/devkitpro/devkitARM && echo "OK!"
-export DEVKITPPC=/opt/devkitpro/devkitPPC && echo "OK!"
+Setup Environment Variables:
 ```
+export PATH="$PATH:/opt/devkitpro/tools/bin"
+export DEVKITPRO=/opt/devkitpro
+export DEVKITARM=/opt/devkitpro/devkitARM
+export DEVKITPPC=/opt/devkitpro/devkitPPC
+```
+**Clone Repository & Prepare Branch:**
 
-**Clone Repository:**
+Clone the repository and immediately check out the 3DS port branch:
 
-```sh
+```
 git clone https://github.com/mkst/sm64-port.git
+cd sm64-port
+git checkout 3ds-port
+```
+**Provide the Base ROM:**
+Copy your legally obtained Super Mario 64 ROM into the root directory.
+(This assumes you have the ROM in C:\temp)
+```
+cp /c/temp/baserom.us.z64 ./baserom.us.z64
+```
+Change 'us' to 'eu', 'jp', or 'sh' depending on your ROM version.
+
+You can also do this with the Windows explorer, just place your ROM on the sm64-port folder.
+
+**Build the Port:**
+
+Due to a race condition with embedded libraries, you must build the host tools sequentially first, before building the game.
+
+Build Host Tools:
+```
+make -C tools -j1
 ```
 
-**Navigate into freshly checked out repo:**
+Build the 3DS Game (.cia):
 
-```sh
-cd sm64-port && echo "OK!"
+To build the installable .cia file using 4 CPU cores, run the following command. The optional flags included here will enable the 3D slider and disable accurate audio math (which significantly improves performance on the Old 3DS hardware).
+
 ```
-
-**Copy in baserom.XX.z64:**
-
-This assumes that you have create the directory `c:\temp` via Windows Explorer and copied the Super Mario 64 `baserom.XX.z64` to it.
-```sh
-cp /c/temp/baserom.us.z64 ./ && echo "OK!" # change 'us' to 'eu', 'jp' or 'sh' as appropriate
+make VERSION=us ENABLE_3DS_3D=1 AUDIO_USE_ACCURATE_MATH=0 cia -j4
 ```
+Standard (.cia) command:
+```
+make VERSION=us cia # Change 'us' to 'eu', 'jp' or 'sh' as appropriate.
+```
+Compile 3dsx:
 
-**Compile 3dsx:**
-
-```sh
+```
 make VERSION=us --jobs 4 # Change 'us' to 'eu', 'jp' or 'sh' as appropriate.
 ```
 
-**Create .cia:**
-
-```sh
-make VERSION=us cia # Change 'us' to 'eu', 'jp' or 'sh' as appropriate.
+If any of these fail and you need to redo, use 
 ```
+make clean
+```
+
+Don't be afraid when you notice that .CIA file is under 8MB
 
 ### Other Operating Systems
 
