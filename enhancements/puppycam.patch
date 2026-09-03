@@ -646,6 +646,7 @@ index 4748b99..5991195 100644
  #include "level_table.h"
  #include "course_table.h"
  #include "thread6.h"
+ #include "macros.h"
 +#include "src/puppycam/puppycam.h"
  
  #define MENU_DATA_MAGIC 0x4849
